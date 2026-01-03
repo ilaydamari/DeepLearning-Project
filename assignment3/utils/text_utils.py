@@ -1,166 +1,176 @@
-import re
-import string
+"""
+Text preprocessing utilities for lyrics generation using Word2Vec embeddings.
+Following the style from Deep Learning practical sessions.
+"""
+
+import pandas as pd
 import numpy as np
-from collections import Counter
 import pickle
-from typing import List, Dict, Tuple
 import gensim.downloader as api
-from gensim.models import Word2Vec
+from typing import List, Tuple, Dict, Optional
+import torch
+import re
+from collections import Counter
+
+
+def parse_lyrics_csv(csv_path: str) -> List[str]:
+    """
+    Parse lyrics from CSV file.
+    
+    Args:
+        csv_path (str): Path to CSV file
+        
+    Returns:
+        List[str]: List of lyrics texts
+    """
+    try:
+        df = pd.read_csv(csv_path)
+        # Assuming lyrics are in the 3rd column (index 2)
+        lyrics_column = df.columns[2]  
+        lyrics_list = df[lyrics_column].dropna().tolist()
+        
+        # Clean lyrics
+        cleaned_lyrics = []
+        for lyric in lyrics_list:
+            if isinstance(lyric, str):
+                # Remove extra characters and normalize
+                lyric = lyric.replace('&', '\n').replace(',,,,', '')
+                lyric = re.sub(r'\s+', ' ', lyric).strip()
+                if len(lyric) > 10:  # Filter very short lyrics
+                    cleaned_lyrics.append(lyric.lower())
+        
+        print(f"Loaded {len(cleaned_lyrics)} lyrics from {csv_path}")
+        return cleaned_lyrics
+        
+    except Exception as e:
+        print(f"Error reading {csv_path}: {e}")
+        return []
+
 
 class TextPreprocessor:
-    """
-    Text preprocessing utility for lyrics data.
-    Handles tokenization, vocabulary building, and sequence preparation.
-    """
+    """Text preprocessor with Word2Vec embeddings following course style."""
     
-    def __init__(self, min_word_freq=2):
+    def __init__(self, min_word_freq: int = 2):
+        """
+        Initialize preprocessor.
+        
+        Args:
+            min_word_freq (int): Minimum word frequency for vocabulary
+        """
         self.min_word_freq = min_word_freq
-        self.word_to_idx = {}
-        self.idx_to_word = {}
+        self.word2idx = {}
+        self.idx2word = {}
         self.vocab_size = 0
+        self.embedding_matrix = None
         self.word2vec_model = None
-        self.embedding_dim = 300
-        self.special_tokens = {
-            '<PAD>': 0,
-            '<UNK>': 1,
-            '<START>': 2,
-            '<END>': 3
-        }
         
-    def clean_text(self, text: str) -> str:
+        # Special tokens
+        self.PAD_TOKEN = '<PAD>'
+        self.UNK_TOKEN = '<UNK>'
+        self.SOS_TOKEN = '<SOS>'
+        self.EOS_TOKEN = '<EOS>'
+        
+        # Token indices
+        self.PAD_IDX = 0
+        self.UNK_IDX = 1
+        self.SOS_IDX = 2
+        self.EOS_IDX = 3
+        
+    def clean_text(self, text: str) -> List[str]:
         """
-        Clean and normalize text data.
+        Clean and tokenize text following course preprocessing.
         
         Args:
-            text (str): Raw text to clean
+            text (str): Input text
             
         Returns:
-            str: Cleaned text
+            List[str]: List of cleaned tokens
         """
-        # Convert to lowercase
+        # Basic text cleaning
         text = text.lower()
+        text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+        text = re.sub(r'\s+', ' ', text)     # Normalize whitespace
         
-        # Remove extra whitespace and normalize
-        text = re.sub(r'\s+', ' ', text)
-        
-        # Keep only letters, numbers, and basic punctuation
-        text = re.sub(r'[^a-zA-Z0-9\s\.,!?\'\-]', '', text)
-        
-        # Replace & with and (common in lyrics data)
-        text = text.replace('&', 'and')
-        
-        return text.strip()
-    
-    def tokenize(self, text: str) -> List[str]:
-        """
-        Tokenize text into words.
-        
-        Args:
-            text (str): Text to tokenize
-            
-        Returns:
-            List[str]: List of tokens
-        """
-        # Clean text first
-        text = self.clean_text(text)
-        
-        # Simple word tokenization
+        # Simple tokenization
         tokens = text.split()
-        
-        # Remove empty tokens
-        tokens = [token for token in tokens if token.strip()]
         
         return tokens
     
-    def build_vocabulary(self, texts: List[str]):
+    def build_vocabulary(self, texts: List[str]) -> None:
         """
-        Build vocabulary from list of texts.
+        Build vocabulary from texts.
         
         Args:
             texts (List[str]): List of text documents
         """
-        word_counts = Counter()
+        print("Building vocabulary...")
         
-        # Count words in all texts
+        # Count word frequencies
+        word_counts = Counter()
         for text in texts:
-            tokens = self.tokenize(text)
+            tokens = self.clean_text(text)
             word_counts.update(tokens)
         
-        # Filter words by frequency
-        filtered_words = [word for word, count in word_counts.items() 
-                         if count >= self.min_word_freq]
+        # Create word to index mapping
+        self.word2idx = {
+            self.PAD_TOKEN: self.PAD_IDX,
+            self.UNK_TOKEN: self.UNK_IDX,
+            self.SOS_TOKEN: self.SOS_IDX,
+            self.EOS_TOKEN: self.EOS_IDX
+        }
         
-        # Add special tokens first
-        self.word_to_idx = self.special_tokens.copy()
-        
-        # Add regular words
-        for word in sorted(filtered_words):
-            if word not in self.word_to_idx:
-                self.word_to_idx[word] = len(self.word_to_idx)
+        # Add words with sufficient frequency
+        for word, count in word_counts.items():
+            if count >= self.min_word_freq:
+                self.word2idx[word] = len(self.word2idx)
         
         # Create reverse mapping
-        self.idx_to_word = {idx: word for word, idx in self.word_to_idx.items()}
-        self.vocab_size = len(self.word_to_idx)
+        self.idx2word = {idx: word for word, idx in self.word2idx.items()}
+        self.vocab_size = len(self.word2idx)
         
-        print(f"Built vocabulary with {self.vocab_size} words")
+        print(f"Vocabulary size: {self.vocab_size}")
         print(f"Most common words: {list(word_counts.most_common(10))}")
     
-    def load_word2vec_embeddings(self, model_name='word2vec-google-news-300'):
+    def load_word2vec_embeddings(self, model_name: str = 'word2vec-google-news-300') -> None:
         """
-        Load pre-trained Word2Vec embeddings (300 entries per term as required).
+        Load pre-trained Word2Vec embeddings.
         
         Args:
-            model_name (str): Name of the pre-trained model to download
+            model_name (str): Name of the Word2Vec model
         """
         print(f"Loading Word2Vec model: {model_name}")
-        print("This may take a few minutes for the first download...")
         try:
-            # Download and load the 300-dimensional Word2Vec model
             self.word2vec_model = api.load(model_name)
-            print(f"Word2Vec model loaded successfully")
-            print(f"Model vocabulary size: {len(self.word2vec_model)}")
-            print(f"Embedding dimension: {self.word2vec_model.vector_size}")
-            
-            # Verify it's 300 dimensions as required
-            if self.word2vec_model.vector_size != 300:
-                print(f"Warning: Model has {self.word2vec_model.vector_size} dimensions, expected 300")
-                
+            print("Word2Vec model loaded successfully")
+            self._create_embedding_matrix()
         except Exception as e:
             print(f"Error loading Word2Vec model: {e}")
-            print("Please ensure internet connection for downloading the model.")
-            print("Alternatively, you can train a custom Word2Vec model.")
-            raise e
-            
-    def get_embedding_matrix(self) -> np.ndarray:
-        """
-        Create embedding matrix for the vocabulary using Word2Vec.
+            print("Using random embeddings instead")
+            self._create_random_embedding_matrix()
+    
+    def _create_embedding_matrix(self, embedding_dim: int = 300) -> None:
+        """Create embedding matrix from Word2Vec model."""
+        print("Creating embedding matrix...")
         
-        Returns:
-            np.ndarray: Embedding matrix of shape (vocab_size, embedding_dim)
-        """
-        if self.word2vec_model is None:
-            raise ValueError("Word2Vec model not loaded. Call load_word2vec_embeddings() first.")
+        self.embedding_matrix = np.random.normal(0, 0.1, (self.vocab_size, embedding_dim))
         
-        embedding_matrix = np.zeros((self.vocab_size, self.embedding_dim))
+        # Set special token embeddings
+        self.embedding_matrix[self.PAD_IDX] = np.zeros(embedding_dim)  # PAD token
         
+        # Fill embeddings for vocabulary words
         found_words = 0
-        for word, idx in self.word_to_idx.items():
-            if word in self.special_tokens:
-                # Initialize special tokens randomly
-                embedding_matrix[idx] = np.random.normal(0, 0.1, self.embedding_dim)
-            else:
-                try:
-                    if word in self.word2vec_model:
-                        embedding_matrix[idx] = self.word2vec_model[word]
-                        found_words += 1
-                    else:
-                        # Initialize unknown words randomly
-                        embedding_matrix[idx] = np.random.normal(0, 0.1, self.embedding_dim)
-                except KeyError:
-                    embedding_matrix[idx] = np.random.normal(0, 0.1, self.embedding_dim)
+        for word, idx in self.word2idx.items():
+            if word in self.word2vec_model:
+                self.embedding_matrix[idx] = self.word2vec_model[word]
+                found_words += 1
         
-        print(f"Found pre-trained embeddings for {found_words}/{self.vocab_size} words")
-        return embedding_matrix
+        print(f"Found Word2Vec embeddings for {found_words}/{self.vocab_size} words")
+    
+    def _create_random_embedding_matrix(self, embedding_dim: int = 300) -> None:
+        """Create random embedding matrix as fallback."""
+        print("Creating random embedding matrix...")
+        self.embedding_matrix = np.random.normal(0, 0.1, (self.vocab_size, embedding_dim))
+        self.embedding_matrix[self.PAD_IDX] = np.zeros(embedding_dim)  # PAD token
     
     def text_to_sequence(self, text: str) -> List[int]:
         """
@@ -172,16 +182,16 @@ class TextPreprocessor:
         Returns:
             List[int]: Sequence of token indices
         """
-        tokens = self.tokenize(text)
-        sequence = [self.special_tokens['<START>']]
+        tokens = self.clean_text(text)
+        sequence = [self.SOS_IDX]  # Start token
         
         for token in tokens:
-            if token in self.word_to_idx:
-                sequence.append(self.word_to_idx[token])
+            if token in self.word2idx:
+                sequence.append(self.word2idx[token])
             else:
-                sequence.append(self.special_tokens['<UNK>'])
+                sequence.append(self.UNK_IDX)
         
-        sequence.append(self.special_tokens['<END>'])
+        sequence.append(self.EOS_IDX)  # End token
         return sequence
     
     def sequence_to_text(self, sequence: List[int]) -> str:
@@ -196,108 +206,126 @@ class TextPreprocessor:
         """
         words = []
         for idx in sequence:
-            if idx in self.idx_to_word:
-                word = self.idx_to_word[idx]
-                if word not in ['<PAD>', '<START>', '<END>']:
+            if idx in self.idx2word:
+                word = self.idx2word[idx]
+                if word not in [self.PAD_TOKEN, self.SOS_TOKEN, self.EOS_TOKEN]:
                     words.append(word)
         
         return ' '.join(words)
     
-    def prepare_sequences(self, texts: List[str], max_length: int = None) -> Tuple[np.ndarray, np.ndarray]:
+    def prepare_sequences(self, texts: List[str], max_length: int) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Prepare input/target sequences for training.
-        Each training step receives one word at a time as specified in the assignment.
+        Prepare input-output sequences for training following course approach.
         
         Args:
-            texts (List[str]): List of text documents
+            texts (List[str]): List of texts
             max_length (int): Maximum sequence length
             
         Returns:
-            Tuple[np.ndarray, np.ndarray]: Input sequences and target sequences
+            Tuple[np.ndarray, np.ndarray]: Input and target sequences
         """
-        sequences = []
+        print(f"Preparing sequences with max_length={max_length}")
         
-        for text in texts:
-            seq = self.text_to_sequence(text)
-            sequences.append(seq)
-        
-        if max_length is None:
-            max_length = min(50, max(len(seq) for seq in sequences))  # Reasonable default
-        
-        # Prepare input and target sequences for word-by-word training
         input_sequences = []
         target_sequences = []
         
-        for seq in sequences:
-            if len(seq) > 2:  # Must have at least START and END tokens
-                # Create sequences where each step predicts the next word
-                # This implements the requirement: "receive as input one word of the lyrics"
-                for i in range(1, min(len(seq), max_length)):
-                    input_seq = seq[:i]  # Previous words up to current position
-                    target_word = seq[i]  # Next word to predict
-                    
-                    # Pad input sequence to max_length-1 (leave room for next word)
-                    if len(input_seq) < max_length - 1:
-                        padded_input = input_seq + [self.special_tokens['<PAD>']] * (max_length - 1 - len(input_seq))
-                    else:
-                        padded_input = input_seq[:max_length-1]
-                    
-                    input_sequences.append(padded_input)
-                    target_sequences.append(target_word)
+        for text in texts:
+            sequence = self.text_to_sequence(text)
+            
+            # Create sliding window sequences as in the course
+            for i in range(1, len(sequence)):
+                # Input: sequence up to position i
+                input_seq = sequence[:i]
+                # Target: next word
+                target = sequence[i]
+                
+                # Pad input sequence
+                if len(input_seq) > max_length:
+                    input_seq = input_seq[-max_length:]  # Take last max_length tokens
+                else:
+                    # Pad with PAD tokens
+                    input_seq = [self.PAD_IDX] * (max_length - len(input_seq)) + input_seq
+                
+                input_sequences.append(input_seq)
+                target_sequences.append(target)
         
-        print(f"Created {len(input_sequences)} training sequences")
+        print(f"Generated {len(input_sequences)} training sequences")
+        
         return np.array(input_sequences), np.array(target_sequences)
     
-    def save_preprocessor(self, filepath: str):
-        """Save preprocessor state to file."""
+    def get_embedding_matrix(self) -> Optional[torch.Tensor]:
+        """
+        Get embedding matrix as PyTorch tensor.
+        
+        Returns:
+            Optional[torch.Tensor]: Embedding matrix
+        """
+        if self.embedding_matrix is not None:
+            return torch.FloatTensor(self.embedding_matrix)
+        return None
+    
+    def save_preprocessor(self, path: str) -> None:
+        """Save preprocessor state."""
         state = {
-            'word_to_idx': self.word_to_idx,
-            'idx_to_word': self.idx_to_word,
+            'word2idx': self.word2idx,
+            'idx2word': self.idx2word,
             'vocab_size': self.vocab_size,
-            'min_word_freq': self.min_word_freq,
-            'special_tokens': self.special_tokens
+            'min_word_freq': self.min_word_freq
         }
         
-        with open(filepath, 'wb') as f:
+        with open(path, 'wb') as f:
             pickle.dump(state, f)
-        
-        print(f"Preprocessor saved to {filepath}")
+        print(f"Preprocessor saved to {path}")
     
-    def load_preprocessor(self, filepath: str):
-        """Load preprocessor state from file."""
-        with open(filepath, 'rb') as f:
+    def load_preprocessor(self, path: str) -> None:
+        """Load preprocessor state."""
+        with open(path, 'rb') as f:
             state = pickle.load(f)
         
-        self.word_to_idx = state['word_to_idx']
-        self.idx_to_word = state['idx_to_word']
+        self.word2idx = state['word2idx']
+        self.idx2word = state['idx2word']
         self.vocab_size = state['vocab_size']
         self.min_word_freq = state['min_word_freq']
-        self.special_tokens = state['special_tokens']
         
-        print(f"Preprocessor loaded from {filepath}")
+        print(f"Preprocessor loaded from {path}")
 
-def parse_lyrics_csv(csv_path: str) -> List[str]:
+
+# Utility function following course style
+def create_data_loaders(sequences: np.ndarray, targets: np.ndarray, 
+                       batch_size: int = 32, validation_split: float = 0.1) -> Tuple:
     """
-    Parse lyrics from CSV file.
+    Create train/validation data loaders.
     
     Args:
-        csv_path (str): Path to CSV file
+        sequences (np.ndarray): Input sequences
+        targets (np.ndarray): Target sequences
+        batch_size (int): Batch size
+        validation_split (float): Validation split ratio
         
     Returns:
-        List[str]: List of lyrics texts
+        Tuple: Train and validation data loaders
     """
-    import pandas as pd
+    from torch.utils.data import DataLoader, TensorDataset, random_split
     
-    try:
-        df = pd.read_csv(csv_path, header=None, names=['artist', 'song', 'lyrics', 'extra1', 'extra2', 'extra3', 'extra4'])
-        lyrics = df['lyrics'].dropna().tolist()
-        
-        # Filter out very short lyrics
-        lyrics = [lyric for lyric in lyrics if len(lyric.split()) > 10]
-        
-        print(f"Loaded {len(lyrics)} lyrics from {csv_path}")
-        return lyrics
+    # Convert to tensors
+    sequences_tensor = torch.LongTensor(sequences)
+    targets_tensor = torch.LongTensor(targets)
     
-    except Exception as e:
-        print(f"Error loading CSV: {e}")
-        return []
+    # Create dataset
+    dataset = TensorDataset(sequences_tensor, targets_tensor)
+    
+    # Split dataset
+    total_size = len(dataset)
+    val_size = int(total_size * validation_split)
+    train_size = total_size - val_size
+    
+    train_dataset, val_dataset = random_split(
+        dataset, [train_size, val_size], 
+        generator=torch.Generator().manual_seed(42)
+    )
+    
+    # Create data loaders
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, val_loader

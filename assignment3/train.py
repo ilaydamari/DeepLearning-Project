@@ -106,10 +106,11 @@ def train_model(
     val_loader: DataLoader,
     num_epochs: int = 20,
     device: torch.device = torch.device('cpu'),
-    save_path: str = 'models/best_model.pth'
+    save_path: str = 'models/best_model.pth',
+    patience: int = 5
 ) -> LyricsRNNTrainer:
     """
-    Train the lyrics generation model.
+    Train the lyrics generation model following course training style.
     
     Args:
         model (LyricsRNN): Model to train
@@ -118,78 +119,94 @@ def train_model(
         num_epochs (int): Number of training epochs
         device (torch.device): Device to train on
         save_path (str): Path to save the best model
+        patience (int): Early stopping patience
         
     Returns:
         LyricsRNNTrainer: Trained model trainer
     """
+    # Setup training following course approach
     model = model.to(device)
     trainer = LyricsRNNTrainer(model, learning_rate=0.001)
     
     best_val_loss = float('inf')
-    patience = 5
     patience_counter = 0
     
-    print(f"Training on device: {device}")
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+    print(f"🔧 Training setup:")
+    print(f"  Device: {device}")
+    print(f"  Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+    print(f"  Early stopping patience: {patience}")
+    print("-" * 60)
     
+    # Training loop following course pattern
     for epoch in range(num_epochs):
-        # Training phase
+        # Training phase - word-by-word learning as required
         model.train()
         train_losses = []
         
-        train_pbar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs} [Train]')
+        train_pbar = tqdm(train_loader, desc=f'🏋️  Epoch {epoch+1}/{num_epochs} [Training]')
         for batch_idx, (input_batch, target_batch) in enumerate(train_pbar):
             input_batch, target_batch = input_batch.to(device), target_batch.to(device)
             
+            # Train step - learning to predict next word
             loss = trainer.train_step(input_batch, target_batch)
             train_losses.append(loss)
             
-            # Update progress bar
+            # Update progress bar with current metrics
             train_pbar.set_postfix({
                 'Loss': f'{loss:.4f}',
-                'Avg Loss': f'{np.mean(train_losses):.4f}'
+                'Avg Loss': f'{np.mean(train_losses):.4f}',
+                'Perplexity': f'{np.exp(np.mean(train_losses)):.2f}'
             })
         
         # Validation phase
         model.eval()
         val_losses = []
         
-        val_pbar = tqdm(val_loader, desc=f'Epoch {epoch+1}/{num_epochs} [Val]')
+        val_pbar = tqdm(val_loader, desc=f'📊 Epoch {epoch+1}/{num_epochs} [Validation]')
         for input_batch, target_batch in val_pbar:
             input_batch, target_batch = input_batch.to(device), target_batch.to(device)
             
             loss = trainer.validate_step(input_batch, target_batch)
             val_losses.append(loss)
             
-            val_pbar.set_postfix({'Val Loss': f'{loss:.4f}'})
+            val_pbar.set_postfix({
+                'Val Loss': f'{loss:.4f}',
+                'Avg Val Loss': f'{np.mean(val_losses):.4f}'
+            })
         
-        # Calculate average losses
+        # Calculate epoch metrics
         avg_train_loss = np.mean(train_losses)
         avg_val_loss = np.mean(val_losses)
+        train_perplexity = np.exp(avg_train_loss)
+        val_perplexity = np.exp(avg_val_loss)
         
         trainer.train_losses.append(avg_train_loss)
         trainer.val_losses.append(avg_val_loss)
         
-        # Update learning rate scheduler
+        # Learning rate scheduling
         trainer.scheduler.step(avg_val_loss)
+        current_lr = trainer.optimizer.param_groups[0]['lr']
         
-        print(f'Epoch {epoch+1}/{num_epochs}:')
-        print(f'  Train Loss: {avg_train_loss:.4f}')
-        print(f'  Val Loss: {avg_val_loss:.4f}')
-        print(f'  Learning Rate: {trainer.optimizer.param_groups[0]["lr"]:.6f}')
+        # Epoch summary following course reporting style
+        print(f'\n📈 Epoch {epoch+1}/{num_epochs} Results:')
+        print(f'  Training Loss: {avg_train_loss:.4f} | Perplexity: {train_perplexity:.2f}')
+        print(f'  Validation Loss: {avg_val_loss:.4f} | Perplexity: {val_perplexity:.2f}')
+        print(f'  Learning Rate: {current_lr:.6f}')
         
-        # Save best model
+        # Save best model following course checkpointing
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             patience_counter = 0
             trainer.save_model(save_path, epoch, avg_val_loss)
-            print(f'  New best model saved!')
+            print(f'  ✅ New best model saved! (Val Loss: {avg_val_loss:.4f})')
         else:
             patience_counter += 1
+            print(f'  ⏳ No improvement. Patience: {patience_counter}/{patience}')
         
-        # Early stopping
+        # Early stopping check
         if patience_counter >= patience:
-            print(f'Early stopping triggered after {epoch+1} epochs')
+            print(f'\n🛑 Early stopping triggered after {epoch+1} epochs')
+            print(f'   Best validation loss: {best_val_loss:.4f}')
             break
         
         print('-' * 60)
@@ -324,33 +341,35 @@ def plot_training_curves(trainer: LyricsRNNTrainer, save_path: str = 'training_c
     print(f"Training curves saved to {save_path}")
 
 def main():
-    """Main training script."""
+    """Main training script following Deep Learning practical session style."""
     
-    # Configuration - following assignment requirements
+    # Configuration - following course parameters
     config = {
         'train_path': 'data/sets/lyrics_train_set.csv',
         'test_path': 'data/sets/lyrics_test_set.csv',
-        'max_sequence_length': 50,  # Word-by-word sequence length
+        'max_sequence_length': 50,  # Sequence length for RNN input
         'batch_size': 32,
-        'embedding_dim': 300,  # Word2Vec dimension (300 entries per term)
-        'hidden_size': 512,
-        'num_layers': 2,
-        'rnn_type': 'LSTM',  # Can be 'LSTM' or 'GRU' as required
-        'dropout': 0.3,
+        'embedding_dim': 300,  # Word2Vec dimension as required
+        'hidden_size': 512,    # Hidden state size
+        'num_layers': 2,       # Number of RNN layers
+        'rnn_type': 'LSTM',    # RNN type: 'LSTM' or 'GRU'
+        'dropout': 0.3,        # Dropout for regularization
         'num_epochs': 20,
         'learning_rate': 0.001,
-        'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        'early_stopping_patience': 5,
+        'min_word_freq': 2     # Minimum word frequency for vocabulary
     }
     
-    print("=== Lyrics Generation with RNN (Assignment 3) ===")
-    print("Implementation: Word-by-word training with Word2Vec embeddings")
+    print("=== Lyrics Generation with RNN - Following Course Style ===")
+    print(f"Device: {config['device']}")
     print(f"Configuration:")
     for key, value in config.items():
         print(f"  {key}: {value}")
-    print("=" * 50)
+    print("=" * 60)
     
-    # Load and prepare data
-    print("\n1. Loading and preparing data...")
+    # 1. Load and prepare data following course data pipeline
+    print("\n📁 Step 1: Loading and preparing data...")
     dataset = LyricsDataset(
         config['train_path'],
         config['test_path'],
@@ -361,11 +380,16 @@ def main():
         batch_size=config['batch_size']
     )
     
-    # Get Word2Vec embeddings
+    # Get Word2Vec embeddings as required by assignment
     embedding_matrix = dataset.preprocessor.get_embedding_matrix()
+    print(f"✓ Data loaded successfully")
+    print(f"  Training batches: {len(train_loader)}")
+    print(f"  Validation batches: {len(val_loader)}")
+    print(f"  Test batches: {len(test_loader)}")
+    print(f"  Vocabulary size: {dataset.preprocessor.vocab_size}")
     
-    # Initialize model
-    print("\n2. Initializing model...")
+    # 2. Initialize model following course architecture
+    print("\n🏗️  Step 2: Initializing RNN model...")
     model = LyricsRNN(
         vocab_size=dataset.preprocessor.vocab_size,
         embedding_dim=config['embedding_dim'],
@@ -373,53 +397,80 @@ def main():
         num_layers=config['num_layers'],
         rnn_type=config['rnn_type'],
         dropout=config['dropout'],
-        pretrained_embeddings=embedding_matrix
+        pretrained_embeddings=embedding_matrix  # Word2Vec initialization
     )
     
-    print(f"Model created with {sum(p.numel() for p in model.parameters() if p.requires_grad):,} parameters")
+    # Print model summary
+    from models.RNN_baseline import get_model_summary
+    model_summary = get_model_summary(model)
+    print(f"✓ Model created successfully")
+    print("Model Summary:")
+    for key, value in model_summary.items():
+        print(f"  {key}: {value}")
     
-    # Train model
-    print("\n3. Training model...")
+    # 3. Train model following course training procedure
+    print(f"\n🚀 Step 3: Training model for {config['num_epochs']} epochs...")
     trainer = train_model(
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
         num_epochs=config['num_epochs'],
         device=config['device'],
-        save_path='models/best_lyrics_model.pth'
+        save_path='models/best_lyrics_model.pth',
+        patience=config['early_stopping_patience']
     )
     
-    # Plot training curves
-    print("\n4. Plotting training curves...")
+    # 4. Plot training curves following course visualization
+    print("\n📊 Step 4: Plotting training curves...")
     plot_training_curves(trainer, 'training_curves.png')
     
-    # Load best model for evaluation
-    print("\n5. Loading best model for evaluation...")
+    # 5. Load best model for evaluation
+    print("\n🔄 Step 5: Loading best model for evaluation...")
     trainer.load_model('models/best_lyrics_model.pth')
     
-    # Evaluate model
-    print("\n6. Evaluating model...")
+    # 6. Evaluate model following course evaluation
+    print("\n📋 Step 6: Evaluating model...")
     test_perplexity = evaluate_model(model, test_loader, config['device'])
     
-    # Generate sample lyrics
-    print("\n7. Generating sample lyrics...")
-    sample_seeds = ["love is", "i want to", "when the sun", "in the night"]
+    # 7. Generate sample lyrics to demonstrate functionality
+    print("\n✨ Step 7: Generating sample lyrics...")
+    sample_seeds = [
+        "love is",      # Simple emotion seed
+        "i want to",    # Action-oriented seed  
+        "when the sun", # Descriptive seed
+        "in the night", # Time-based seed
+        "music makes"   # Music-related seed
+    ]
     
+    print("Generated lyrics samples:")
+    print("=" * 50)
     for seed in sample_seeds:
-        print(f"\nSeed: '{seed}'")
-        generated = generate_lyrics(
-            model, dataset.preprocessor, seed, 
-            max_length=50, temperature=0.8, device=config['device']
-        )
-        print(f"Generated: {generated}")
+        print(f"\n🎵 Seed: '{seed}'")
+        try:
+            generated = generate_lyrics(
+                model, dataset.preprocessor, seed, 
+                max_length=50, temperature=0.8, device=config['device']
+            )
+            print(f"Generated: {generated}")
+        except Exception as e:
+            print(f"Generation failed: {e}")
+        print("-" * 30)
     
-    # Save preprocessor
-    print("\n8. Saving preprocessor...")
+    # 8. Save preprocessor for future use
+    print("\n💾 Step 8: Saving preprocessor...")
     dataset.preprocessor.save_preprocessor('models/preprocessor.pkl')
     
-    print("\nTraining completed successfully!")
-    print(f"Best model saved at: models/best_lyrics_model.pth")
-    print(f"Test perplexity: {test_perplexity:.2f}")
+    # Final summary following course reporting style
+    print("\n" + "=" * 60)
+    print("🎉 TRAINING COMPLETED SUCCESSFULLY!")
+    print("=" * 60)
+    print(f"📁 Best model saved: models/best_lyrics_model.pth")
+    print(f"📊 Test perplexity: {test_perplexity:.2f}")
+    print(f"📝 Preprocessor saved: models/preprocessor.pkl")
+    print(f"📈 Training curves: training_curves.png")
+    print(f"🧠 Architecture: {config['rnn_type']} with {config['embedding_dim']}D Word2Vec embeddings")
+    print(f"📚 Vocabulary size: {dataset.preprocessor.vocab_size} words")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()
