@@ -5,24 +5,20 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import pandas as pd
 import os
 import sys
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-import seaborn as sns
 from typing import Tuple, List
+from datetime import datetime
 
 # Add the project root to the path for module imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.text_utils import TextPreprocessor, parse_lyrics_csv
 from models.RNN_baseline import LyricsRNN, LyricsRNNTrainer
-
-# Configure visualization styling for professional plots
-plt.style.use('seaborn-v0_8')
-sns.set_palette("husl")
 
 ####################################### DATA PIPELINE - Lyrics Dataset Processing ############################
 # Complete data processing workflow: CSV loading → text preprocessing → sequence generation → DataLoaders
@@ -45,19 +41,24 @@ class LyricsDataset:
         self.max_sequence_length = max_sequence_length
         self.preprocessor = TextPreprocessor(min_word_freq=2)
         
-        # Load and preprocess data
+        ####### DATA LOADING - Separate Train/Test Loading ########################
+        # Load training and test data separately to maintain proper separation
         print("Loading and preprocessing data...")
         self.train_lyrics = parse_lyrics_csv(train_path)
         self.test_lyrics = parse_lyrics_csv(test_path)
         
-        # Build vocabulary
-        all_lyrics = self.train_lyrics + self.test_lyrics
-        self.preprocessor.build_vocabulary(all_lyrics)
+        ####### VOCABULARY CONSTRUCTION - Training Data Only ####################
+        # CRITICAL: Build vocabulary ONLY on training data to prevent data leakage
+        # Test data vocabulary will be mapped using train vocabulary (UNK for unknown words)
+        print("Building vocabulary from TRAINING DATA ONLY (preventing data leakage)...")
+        self.preprocessor.build_vocabulary(self.train_lyrics)  # Only train data!
         
-        # Load Word2Vec embeddings
+        ####### EMBEDDING INTEGRATION - Word2Vec Loading #######################
+        # Load pre-trained embeddings for the training-based vocabulary
         self.preprocessor.load_word2vec_embeddings()
         
-        # Prepare sequences
+        ####### SEQUENCE PREPARATION - Convert Text to Numerical Sequences ######
+        # Apply vocabulary mapping to both train and test (test uses train vocab)
         self.X_train, self.y_train = self.preprocessor.prepare_sequences(
             self.train_lyrics, self.max_sequence_length
         )
@@ -67,6 +68,7 @@ class LyricsDataset:
         
         print(f"Training sequences: {self.X_train.shape}")
         print(f"Test sequences: {self.X_test.shape}")
+        print(f"Vocabulary size (train-only): {self.preprocessor.vocab_size}")
     
     def get_dataloaders(self, batch_size: int = 32, validation_split: float = 0.1) -> Tuple[DataLoader, DataLoader, DataLoader]:
         """
@@ -110,7 +112,7 @@ class LyricsDataset:
 
 ####################################### TRAINING PIPELINE - Model Learning & Optimization ###################
 # Core training loop: forward pass → loss calculation → backpropagation → validation → checkpointing
-# Implements early stopping, learning rate scheduling, and comprehensive progress tracking
+# Implements early stopping, learning rate scheduling, TensorBoard logging and comprehensive progress tracking
 
 def train_model(
     model: LyricsRNN,
@@ -119,10 +121,11 @@ def train_model(
     num_epochs: int = 20,
     device: torch.device = torch.device('cpu'),
     save_path: str = 'models/best_model.pth',
-    patience: int = 5
+    patience: int = 5,
+    log_dir: str = 'runs'
 ) -> LyricsRNNTrainer:
     """
-    Train the lyrics generation model following course training style.
+    Train the lyrics generation model following course training style with TensorBoard logging.
     
     Args:
         model (LyricsRNN): Model to train
@@ -132,30 +135,42 @@ def train_model(
         device (torch.device): Device to train on
         save_path (str): Path to save the best model
         patience (int): Early stopping patience
+        log_dir (str): TensorBoard log directory
         
     Returns:
         LyricsRNNTrainer: Trained model trainer
     """
-    # Setup training following course approach
+    ####### TRAINING SETUP - Initialize Training Components ####################
+    # Setup model, trainer, and TensorBoard logging for comprehensive monitoring
+    
     model = model.to(device)
     trainer = LyricsRNNTrainer(model, learning_rate=0.001)
+    
+    # Initialize TensorBoard writer with timestamped log directory
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    writer = SummaryWriter(log_dir=f'{log_dir}/lyrics_rnn_{timestamp}')
     
     best_val_loss = float('inf')
     patience_counter = 0
     
-    print(f"  Training setup:")
+    print(f"Training setup:")
     print(f"  Device: {device}")
     print(f"  Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
     print(f"  Early stopping patience: {patience}")
+    print(f"  TensorBoard logs: {log_dir}/lyrics_rnn_{timestamp}")
     print("-" * 60)
+    
+    ####### EPOCH TRAINING LOOP - Iterative Learning Process ##################
+    # Main training loop with TensorBoard logging and comprehensive monitoring
     
     # Training loop following course pattern
     for epoch in range(num_epochs):
-        # Training phase - word-by-word learning as required
+        ####### TRAINING PHASE - Learn to Predict Next Words ####################
+        # Forward pass through training data with gradient updates
         model.train()
         train_losses = []
         
-        train_pbar = tqdm(train_loader, desc=f'🏋️  Epoch {epoch+1}/{num_epochs} [Training]')
+        train_pbar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs} [Training]')
         for batch_idx, (input_batch, target_batch) in enumerate(train_pbar):
             input_batch, target_batch = input_batch.to(device), target_batch.to(device)
             
@@ -169,8 +184,14 @@ def train_model(
                 'Avg Loss': f'{np.mean(train_losses):.4f}',
                 'Perplexity': f'{np.exp(np.mean(train_losses)):.2f}'
             })
+            
+            # Log batch-level metrics to TensorBoard
+            global_step = epoch * len(train_loader) + batch_idx
+            writer.add_scalar('Loss/Train_Batch', loss, global_step)
+            writer.add_scalar('Perplexity/Train_Batch', np.exp(loss), global_step)
         
-        # Validation phase
+        ####### VALIDATION PHASE - Model Performance Assessment #################
+        # Evaluate model on validation set without gradient updates
         model.eval()
         val_losses = []
         
@@ -186,6 +207,9 @@ def train_model(
                 'Avg Val Loss': f'{np.mean(val_losses):.4f}'
             })
         
+        ####### EPOCH METRICS CALCULATION - Performance Analysis ##################
+        # Calculate comprehensive metrics and log to TensorBoard for monitoring
+        
         # Calculate epoch metrics
         avg_train_loss = np.mean(train_losses)
         avg_val_loss = np.mean(val_losses)
@@ -199,29 +223,50 @@ def train_model(
         trainer.scheduler.step(avg_val_loss)
         current_lr = trainer.optimizer.param_groups[0]['lr']
         
+        ####### TENSORBOARD LOGGING - Training Progress Visualization ##############
+        # Log epoch-level metrics for comprehensive training monitoring
+        writer.add_scalars('Loss/Epoch', {
+            'Training': avg_train_loss,
+            'Validation': avg_val_loss
+        }, epoch)
+        
+        writer.add_scalars('Perplexity/Epoch', {
+            'Training': train_perplexity,
+            'Validation': val_perplexity
+        }, epoch)
+        
+        writer.add_scalar('Learning_Rate', current_lr, epoch)
+        
         # Epoch summary following course reporting style
         print(f'\nEpoch {epoch+1}/{num_epochs} Results:')
         print(f'  Training Loss: {avg_train_loss:.4f} | Perplexity: {train_perplexity:.2f}')
         print(f'  Validation Loss: {avg_val_loss:.4f} | Perplexity: {val_perplexity:.2f}')
         print(f'  Learning Rate: {current_lr:.6f}')
         
+        ####### MODEL CHECKPOINTING - Save Best Model State ####################
+        # Save model when validation improves and monitor early stopping
+        
         # Save best model following course checkpointing
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             patience_counter = 0
             trainer.save_model(save_path, epoch, avg_val_loss)
-            print(f' New best model saved! (Val Loss: {avg_val_loss:.4f})')
+            print(f'  New best model saved! (Val Loss: {avg_val_loss:.4f})')
         else:
             patience_counter += 1
-            print(f' No improvement. Patience: {patience_counter}/{patience}')
+            print(f'  No improvement. Patience: {patience_counter}/{patience}')
         
         # Early stopping check
         if patience_counter >= patience:
-            print(f'\n Early stopping triggered after {epoch+1} epochs')
+            print(f'\nEarly stopping triggered after {epoch+1} epochs')
             print(f'   Best validation loss: {best_val_loss:.4f}')
             break
         
         print('-' * 60)
+    
+    # Close TensorBoard writer
+    writer.close()
+    print(f"TensorBoard logs saved. View with: tensorboard --logdir={log_dir}")
     
     return trainer
 
@@ -324,49 +369,9 @@ def generate_lyrics(
     
     return generated_text
 
-####################################### TRAINING VISUALIZATION - Learning Progress Analysis #################
-# Create comprehensive plots showing training dynamics: loss curves and perplexity trends
-# Essential for understanding model convergence and identifying overfitting patterns
-
-def plot_training_curves(trainer: LyricsRNNTrainer, save_path: str = 'training_curves.png'):
-    """
-    Plot training and validation loss curves.
-    
-    Args:
-        trainer (LyricsRNNTrainer): Trained model trainer
-        save_path (str): Path to save the plot
-    """
-    plt.figure(figsize=(12, 5))
-    
-    plt.subplot(1, 2, 1)
-    plt.plot(trainer.train_losses, label='Training Loss', color='blue')
-    plt.plot(trainer.val_losses, label='Validation Loss', color='red')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
-    plt.legend()
-    plt.grid(True)
-    
-    plt.subplot(1, 2, 2)
-    train_perplexity = [np.exp(loss) for loss in trainer.train_losses]
-    val_perplexity = [np.exp(loss) for loss in trainer.val_losses]
-    
-    plt.plot(train_perplexity, label='Training Perplexity', color='blue')
-    plt.plot(val_perplexity, label='Validation Perplexity', color='red')
-    plt.xlabel('Epoch')
-    plt.ylabel('Perplexity')
-    plt.title('Training and Validation Perplexity')
-    plt.legend()
-    plt.grid(True)
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.show()
-    print(f"Training curves saved to {save_path}")
-
 ####################################### MAIN TRAINING ORCHESTRATOR - Complete Workflow Execution ##########
 # Master function coordinating entire training pipeline from data loading to final evaluation
-# Implements Deep Learning course methodology with comprehensive logging and checkpointing
+# Implements Deep Learning course methodology with comprehensive TensorBoard logging and checkpointing
 
 def main():
     """Main training script following Deep Learning practical session style."""
@@ -375,7 +380,7 @@ def main():
     # Define all training hyperparameters following Deep Learning best practices
     # Centralized configuration for easy experimentation and reproducibility
     
-    # Configuration - following course parameters
+    # Configuration - following course parameters with TensorBoard integration
     config = {
         'train_path': 'data/sets/lyrics_train_set.csv',
         'test_path': 'data/sets/lyrics_test_set.csv',
@@ -390,11 +395,14 @@ def main():
         'learning_rate': 0.001,
         'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         'early_stopping_patience': 5,
-        'min_word_freq': 2     # Minimum word frequency for vocabulary
+        'min_word_freq': 2,    # Minimum word frequency for vocabulary (train only!)
+        'tensorboard_dir': 'runs'  # TensorBoard logging directory
     }
     
     print("=== Lyrics Generation with RNN - Following Course Style ===")
     print(f"Device: {config['device']}")
+    print(f"Data Leakage Prevention: Vocabulary built on training data ONLY")
+    print(f"Visualization: TensorBoard (not matplotlib)")
     print(f"Configuration:")
     for key, value in config.items():
         print(f"  {key}: {value}")
@@ -464,36 +472,29 @@ def main():
         patience=config['early_stopping_patience']
     )
     
-    ####### STEP 4: TRAINING ANALYSIS - Visualize Learning Progress ##############
-    # Generate loss and perplexity curves to analyze training dynamics
-    # Essential for understanding model behavior and debugging training issues
-    
-    # 4. Plot training curves following course visualization
-    print("\nStep 4: Plotting training curves...")
-    plot_training_curves(trainer, 'training_curves.png')
-    
-    ####### STEP 5: MODEL RESTORATION - Load Best Checkpoint #####################
+    ####### STEP 4: MODEL RESTORATION - Load Best Checkpoint #####################
     # Restore model from best validation checkpoint for final evaluation
     # Ensures we evaluate the optimal model state, not the last epoch
+    # Training progress is monitored via TensorBoard (no matplotlib plotting needed)
     
-    # 5. Load best model for evaluation
-    print("\nStep 5: Loading best model for evaluation...")
+    # 4. Load best model for evaluation
+    print("\nStep 4: Loading best model for evaluation...")
     trainer.load_model('models/best_lyrics_model.pth')
     
-    ####### STEP 6: FINAL EVALUATION - Test Set Performance Assessment ###########
+    ####### STEP 5: FINAL EVALUATION - Test Set Performance Assessment ###########
     # Evaluate on held-out test set to measure true generalization capability
     # Calculate perplexity as standard language model evaluation metric
     
-    # 6. Evaluate model following course evaluation
-    print("\nStep 6: Evaluating model...")
+    # 5. Evaluate model following course evaluation
+    print("\nStep 5: Evaluating model...")
     test_perplexity = evaluate_model(model, test_loader, config['device'])
     
-    ####### STEP 7: TEXT GENERATION - Demonstrate Model Capabilities ##############
+    ####### STEP 6: TEXT GENERATION - Demonstrate Model Capabilities ##############
     # Generate sample lyrics with different seeds to showcase learning results
     # Test model's ability to produce coherent, contextually appropriate text
     
-    # 7. Generate sample lyrics to demonstrate functionality
-    print("\nStep 7: Generating sample lyrics...")
+    # 6. Generate sample lyrics to demonstrate functionality
+    print("\nStep 6: Generating sample lyrics...")
     sample_seeds = [
         "love is",      # Simple emotion seed
         "i want to",    # Action-oriented seed  
@@ -516,17 +517,17 @@ def main():
             print(f"Generation failed: {e}")
         print("-" * 30)
     
-    ####### STEP 8: MODEL PERSISTENCE - Save for Future Use #####################
+    ####### STEP 7: MODEL PERSISTENCE - Save for Future Use #####################
     # Save preprocessor and final model state for deployment and inference
     # Enables loading trained model in separate generation scripts
     
-    # 8. Save preprocessor for future use
-    print("\nStep 8: Saving preprocessor...")
+    # 7. Save preprocessor for future use
+    print("\nStep 7: Saving preprocessor...")
     dataset.preprocessor.save_preprocessor('models/preprocessor.pkl')
     
     ####### TRAINING COMPLETION - Final Results Summary ########################
     # Comprehensive summary of training results and saved artifacts
-    # Professional reporting following academic standards
+    # Professional reporting following academic standards with TensorBoard info
     
     # Final summary following course reporting style
     print("\n" + "=" * 60)
@@ -535,9 +536,10 @@ def main():
     print(f"Best model saved: models/best_lyrics_model.pth")
     print(f"Test perplexity: {test_perplexity:.2f}")
     print(f"Preprocessor saved: models/preprocessor.pkl")
-    print(f"Training curves: training_curves.png")
+    print(f"TensorBoard logs: {config['tensorboard_dir']}/lyrics_rnn_*")
+    print(f"View training progress: tensorboard --logdir={config['tensorboard_dir']}")
     print(f"Architecture: {config['rnn_type']} with {config['embedding_dim']}D Word2Vec embeddings")
-    print(f"Vocabulary size: {dataset.preprocessor.vocab_size} words")
+    print(f"Vocabulary size: {dataset.preprocessor.vocab_size} words (NO DATA LEAKAGE)")
     print("=" * 60)
 
 if __name__ == "__main__":
