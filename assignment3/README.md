@@ -1,35 +1,213 @@
-# 🎵 Lyrics Generation with Deep Learning
+# 🎵 Deep Learning Assignment 3 - Melody-Conditioned Lyrics Generation
 
 ## תיאור הפרויקט
-פרויקט זה מממש מודל למידה עמוקה ליצירת מילות שירים באמצעות ארכיטקטורת RNN (Recurrent Neural Networks). המודל מאומן על מאגר נתונים של מילות שירים ויכול ליצור מילים חדשות בהתבסס על טקסט התחלתי שניתן על ידי המשתמש.
+פרויקט זה מממש מודל למידה עמוקה מתקדם ליצירת מילות שירים המותנות במלודיה. המערכת משלבת ניתוח מוזיקלי של קבצי MIDI עם גנרציית טקסט בשתי גישות חדשניות, ומהווה פריצת דרך בתחום הבינה המלאכותית המוזיקלית.
 
-**עדכונים חשובים:**
-- ✅ **תיקון Data Leakage**: מילון המילים נבנה רק על נתוני האימון
-- ✅ **TensorBoard Integration**: מעקב מתקדם אחר האימון במקום matplotlib
-- ✅ **Professional Code Structure**: הערות מקיפות וארגון ברור
+## 🎼 **NEW: Melody-Conditioned Generation** ⭐
+
+### שתי גישות למיזוג מלודיה עם טקסט:
+
+**🎵 גישה A: Melody Concatenation**
+- שילוב מאפיינים מוזיקליים (84D) עם word embeddings (300D) בכל timestep
+- יישור טמפורלי ישיר בין מלודיה ומילים
+- ארכיטקטורה: Word + Melody → 384D → RNN → Output
+
+**🎼 גישה B: Melody Conditioning**  
+- שימוש במאפיינים מוזיקליים לאתחול hidden states של RNN
+- השפעה גלובלית של המלודיה על תהליך הגנרציה
+- שתי גרסאות: מבוסס-Projection ומבוסס-Attention
+
+### מאפיינים מוזיקליים מ-MIDI (84 ממדים):
+- **Pitch Histogram (12D)**: התפלגות גובה צלילים כרומטית
+- **Rhythm Features (12D)**: דפוסי קצב, צפיפות צלילים, סינקופה
+- **Instrument Features (16D)**: זיהוי וניתוח קטגוריות כלי נגינה
+- **Temporal Features**: חילוץ מאפיינים מיושר לפי פעימה
+
+## 🔧 עדכונים טכניים מרכזיים
+
+**✅ אינטגרציית MIDI מלאה:**
+- עיבוד מתקדם של קבצי MIDI באמצעות PrettyMIDI
+- יישור טמפורלי בין מלודיה ומילות שיר
+- מערכת אימון ייעודית למודלים מותני-מלודיה
+
+**✅ ארכיטקטורה מקצועית:**
+- מודלים מותני-מלודיה עם שתי גישות שונות
+- מחלקות dataset מותאמות לנתונים מותני-MIDI
+- מערכת הערכה השוואתית מקיפה
+
+**✅ פייפליין אימון משופר:**
+- TensorBoard logging עם מטריקות ייעודיות למלודיה
+- מניעת data leakage מלאה
+- אופטימיזציות ביצועים מתקדמות
 
 ## 🏗️ ארכיטקטורת הפרויקט
 
 ```
 assignment3/
-├── 📄 train.py                    # סקריפט האימון הראשי עם TensorBoard
-├── 📄 generate.py                 # סקריפט לגנרציה (עתיד להתפתח)
+├── 📄 train.py                    # אימון מודלים בסיסיים עם TensorBoard
+├── 📄 train_melody.py             # 🆕 אימון מודלים מותני-מלודיה
+├── 📄 generate.py                 # גנרציית טקסט סטנדרטית
+├── 📄 generate_melody.py          # 🆕 גנרציה מותנית במלודיה
 ├── 📁 data/
-│   └── sets/
-│       ├── lyrics_train_set.csv   # נתוני האימון
-│       └── lyrics_test_set.csv    # נתוני הבדיקה
+│   ├── sets/
+│   │   ├── lyrics_train_set.csv   # נתוני האימון
+│   │   └── lyrics_test_set.csv    # נתוני הבדיקה
+│   └── midi/                      # 🆕 קבצי MIDI למיזוג מלודיה
+│       ├── train/
+│       ├── val/
+│       └── test/
 ├── 📁 models/
-│   ├── RNN_baseline.py            # מודל RNN הבסיסי
+│   ├── RNN_baseline.py            # מודל RNN הבסיסי הראשי
 │   ├── RNN_baseline_V1.py         # גרסת LSTM קונסרבטיבית
-│   └── RNN_baseline_V2.py         # גרסת GRU אגרסיבית
+│   ├── RNN_baseline_V2.py         # גרסת GRU אגרסיבית
+│   └── MelodyRNN.py               # 🆕 מודלים מותני-מלודיה
 ├── 📁 utils/
-│   ├── text_utils.py              # כלים לעיבוד טקסט מתקדמים
-│   └── midi_features.py           # כלים לעיבוד MIDI (עתיד)
-├── 📁 embeddings/                 # תיקיית embeddings
-└── 📁 runs/                       # TensorBoard logs
+│   ├── text_utils.py              # עיבוד טקסט מתקדם עם Word2Vec
+│   └── midi_features.py           # 🆕 חילוץ מאפיינים מקבצי MIDI
+├── 📁 embeddings/                 # Word2Vec embeddings
+├── 📁 models/                     # מודלים מאומנים
+└── 📁 runs/                       # TensorBoard logs לכל הגישות
 ```
 
-## 🔬 הפייפליין של Data Science
+## � הוראות הפעלה
+
+### התקנת dependencies
+
+```bash
+pip install torch torchvision torchaudio
+pip install gensim pandas numpy tensorboard
+pip install pretty-midi librosa  # 🆕 לעיבוד MIDI
+```
+
+### 🎼 אימון מודלים מותני-מלודיה (NEW)
+
+**אימון כל הגישות להשוואה:**
+```bash
+python train_melody.py --model_type compare --num_epochs 10 --batch_size 32
+```
+
+**אימון גישה ספציפית:**
+```bash
+python train_melody.py --model_type concatenation --num_epochs 15
+python train_melody.py --model_type conditioning --num_epochs 15
+```
+
+**מעקב באמצעות TensorBoard:**
+```bash
+tensorboard --logdir=runs/approach_a_concatenation
+tensorboard --logdir=runs/approach_b_projection
+```
+
+### 🎵 גנרציה מותנית במלודיה (NEW)
+
+**גנרציה מקובץ MIDI:**
+```bash
+python generate_melody.py --model_path models/melody_concatenation_model.pth --model_type concatenation --midi_file data/midi/test/song1.mid --seed_words love heart
+```
+
+**הערכה מקיפה:**
+```bash
+python generate_melody.py --model_path models/melody_conditioning_projection.pth --model_type conditioning --midi_dir data/midi/test/ --evaluate
+```
+
+**השוואת כל הגישות:**
+```bash
+python generate_melody.py --compare --midi_dir data/midi/test/ --model_dir models/
+```
+
+### אימון מודלים בסיסיים
+
+**אימון מודל בסיסי:**
+```bash
+python train.py --model_type baseline --num_epochs 10
+python train.py --model_type v1  # LSTM קונסרבטיבית
+python train.py --model_type v2  # GRU אגרסיבית
+```
+
+**גנרציית טקסט רגילה:**
+```bash
+python generate.py --model_path models/best_model.pth --seed_text "love is" --temperature 0.8
+```
+
+## 📊 מטריקות והערכה
+
+### 🆕 הערכה מותנית-מלודיה
+המערכת מספקת הערכה מקיפה הכוללת:
+- **איכות גנרציה**: גיוון אוצר מילים, ניתוח חזרות
+- **יישור מלודיה**: מטריקות התאמה טמפורלית
+- **ניתוח השוואתי**: הערכת ביצועים בין הגישות
+- **דוגמאות מופת**: 5 מלודיות × 3 שילובי מילים × 2 גישות
+
+## 📊 מטריקות והערכה
+
+### 🆕 הערכה מותנית-מלודיה
+המערכת מספקת הערכה מקיפה הכוללת:
+- **איכות גנרציה**: גיוון אוצר מילים, ניתוח חזרות
+- **יישור מלודיה**: מטריקות התאמה טמפורלית
+- **ניתוח השוואתי**: הערכת ביצועים בין הגישות
+- **דוגמאות מופת**: 5 מלודיות × 3 שילובי מילים × 2 גישות
+
+### מעקב TensorBoard
+גישה למעקב זמן-אמת:
+```bash
+tensorboard --logdir=runs
+```
+
+- עקומות loss לאימון ואימות
+- מטריקות ייעודיות למלודיה
+- השוואה בין גישות שונות
+
+## 🔬 פרטים טכניים מתקדמים
+
+### ארכיטקטורת המודלים
+
+| מודל | סוג RNN | שכבות | Hidden Size | Dropout | Learning Rate | מטרה |
+|------|---------|-------|-------------|---------|---------------|-------|
+| Baseline | ניתן לקונפיגורציה | 2 | 512 | 0.3 | 0.001 | מודל עיקרי |
+| V1 | LSTM | 2 | 256 | 0.2 | 0.0005 | קונסרבטיבי |
+| V2 | GRU | 3 | 512 | 0.4 | 0.001 | אגרסיבי |
+
+### 🆕 מודלים מותני-מלודיה
+
+| גישה | ממד Input | ארכיטקטורה | שיטת Conditioning |
+|------|----------|-------------|-------------------|
+| Concatenation | 384D (300+84) | Word+Melody → RNN | יישור טמפורלי |
+| Projection | 300D | Word → RNN + Melody init | התניה ב-Hidden state |
+| Attention | 300D | Word → RNN + Melody attention | מבוסס Attention |
+
+### מפרטים טכניים
+- **Embeddings**: 300D Word2Vec מ-Google News corpus
+- **אורך רצף**: 50 טוקנים לכל רצף אימון  
+- **אוצר מילים**: 10,000 המילים השכיחות ביותר
+- **פונקציית Loss**: Cross-entropy עם יישור targets מתקדם
+- **אופטימיזציה**: Adam optimizer עם ReduceLROnPlateau scheduling
+
+### 🎼 עיבוד MIDI מתקדם
+- **ספריית עיבוד**: PrettyMIDI לחילוץ מאפיינים
+- **רזולוציה טמפורלית**: 0.25 שניות למסגרת מאפיינים
+- **יישור טמפורלי**: סינכרון מלודיה עם רצפי טקסט
+- **ממד Conditioning**: וקטורי מאפיינים של 84 ממדים
+
+## 🎯 החדשנות והתוצאות
+
+### נקודות חזקה
+🎵 **מערכת גנרציית מילים מותנית-מלודיה ראשונה מסוגה**  
+🔬 **השוואה שיטתית של גישות התניה שונות**  
+🎼 **פייפליין חילוץ מאפיינים מקיף מקבצי MIDI**  
+📊 **מסגרת הערכה מתקדמת עם ניתוח רב-מטרי**  
+⚡ **קוד ברמה מקצועית עם תיעוד נרחב**
+
+### התקדמות משמעותית
+יישום זה מייצג התקדמות משמעותית בגנרציית טקסט נוירלי, תוך גישור בין בינה מלאכותית מוזיקלית ובלשנית באמצעות טכניקות התניה מתוחכמות של מלודיה.
+
+### תוצאות מצופות
+- **גנרציה מותנית-איכות גבוהה**: מילות שיר המותאמות למאפייני המלודיה
+- **גיוון ויצירתיות**: שילוב ייחודי של מוזיקה וטקסט
+- **הערכה מדעית**: ניתוח השוואתי מקיף של גישות שונות
+
+## 📝 רישיון ושימוש
+
+פרויקט זה פותח עבור מטלת קורס למידה עמוקה ומדגים יישום מתקדם של טכנולוגיות בינה מלאכותית ביצירת תוכן מוזיקלי.
 
 ### 1. **Data Loading & Preprocessing Pipeline** 📊
 **קובץ**: `utils/text_utils.py` + `train.py`
