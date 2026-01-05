@@ -1,6 +1,6 @@
 """
 Text preprocessing utilities for lyrics generation using Word2Vec embeddings.
-Following the style from Deep Learning practical sessions.
+Complete text processing pipeline: CSV parsing → cleaning → tokenization → vocabulary building → embedding integration.
 """
 
 import pandas as pd
@@ -12,6 +12,9 @@ import torch
 import re
 from collections import Counter
 
+
+####################################### DATA LOADING - CSV File Processing ########################################
+# Load and parse lyrics data from CSV files with cleaning and normalization for model training
 
 def parse_lyrics_csv(csv_path: str) -> List[str]:
     """
@@ -25,8 +28,7 @@ def parse_lyrics_csv(csv_path: str) -> List[str]:
     """
     try:
         df = pd.read_csv(csv_path)
-        # Assuming lyrics are in the 3rd column (index 2)
-        lyrics_column = df.columns[2]  
+        lyrics_column = df.columns[2] # lyric words are in the 3rd column
         lyrics_list = df[lyrics_column].dropna().tolist()
         
         # Clean lyrics
@@ -36,7 +38,7 @@ def parse_lyrics_csv(csv_path: str) -> List[str]:
                 # Remove extra characters and normalize
                 lyric = lyric.replace('&', '\n').replace(',,,,', '')
                 lyric = re.sub(r'\s+', ' ', lyric).strip()
-                if len(lyric) > 10:  # Filter very short lyrics
+                if len(lyric) > 10:  # Filter short lyrics
                     cleaned_lyrics.append(lyric.lower())
         
         print(f"Loaded {len(cleaned_lyrics)} lyrics from {csv_path}")
@@ -47,8 +49,16 @@ def parse_lyrics_csv(csv_path: str) -> List[str]:
         return []
 
 
+####################################### TEXT PREPROCESSOR CLASS - Core Processing Engine ####################
+# Complete text preprocessing pipeline with Word2Vec integration
+# Handles: tokenization → vocabulary building → embedding matrix creation → sequence conversion
+
 class TextPreprocessor:
     """Text preprocessor with Word2Vec embeddings following course style."""
+    
+    ####### PREPROCESSOR INITIALIZATION - Setup Special Tokens & Vocabulary Framework #########
+        # Initialize vocabulary mappings and define special control tokens
+        # Essential tokens: PAD (padding), UNK (unknown), SOS (start), EOS (end)
     
     def __init__(self, min_word_freq: int = 2):
         """
@@ -64,17 +74,21 @@ class TextPreprocessor:
         self.embedding_matrix = None
         self.word2vec_model = None
         
-        # Special tokens
+        # Special tokens for sequence control and handling unknown cases
         self.PAD_TOKEN = '<PAD>'
         self.UNK_TOKEN = '<UNK>'
         self.SOS_TOKEN = '<SOS>'
         self.EOS_TOKEN = '<EOS>'
         
-        # Token indices
+        # Reserved indices for special tokens (must be consistent)
         self.PAD_IDX = 0
         self.UNK_IDX = 1
         self.SOS_IDX = 2
         self.EOS_IDX = 3
+        
+    ####### TEXT NORMALIZATION - Clean & Tokenize Raw Text ########################
+        # Convert raw lyrics text into clean tokens ready for model processing
+        # Steps: lowercase → remove punctuation → normalize whitespace → split tokens
         
     def clean_text(self, text: str) -> List[str]:
         """
@@ -95,6 +109,10 @@ class TextPreprocessor:
         tokens = text.split()
         
         return tokens
+    
+    ####### VOCABULARY CONSTRUCTION - Build Word-to-Index Mappings ###############
+        # Analyze word frequencies and create bidirectional vocabulary mappings
+        # Filter rare words, assign indices, prepare for embedding lookup
     
     def build_vocabulary(self, texts: List[str]) -> None:
         """
@@ -131,6 +149,10 @@ class TextPreprocessor:
         print(f"Vocabulary size: {self.vocab_size}")
         print(f"Most common words: {list(word_counts.most_common(10))}")
     
+    ####### WORD2VEC INTEGRATION - Load Pre-trained Semantic Embeddings ##########
+        # Load Google's Word2Vec model and create embedding matrix for vocabulary
+        # Maps each vocabulary word to dense semantic vector representation
+    
     def load_word2vec_embeddings(self, model_name: str = 'word2vec-google-news-300') -> None:
         """
         Load pre-trained Word2Vec embeddings.
@@ -147,6 +169,10 @@ class TextPreprocessor:
             print(f"Error loading Word2Vec model: {e}")
             print("Using random embeddings instead")
             self._create_random_embedding_matrix()
+    
+    ####### EMBEDDING MATRIX CONSTRUCTION - Map Vocabulary to Dense Vectors #######
+        # Create matrix where each row corresponds to word embedding for vocabulary index
+        # Fills with Word2Vec vectors where available, random vectors for missing words
     
     def _create_embedding_matrix(self, embedding_dim: int = 300) -> None:
         """Create embedding matrix from Word2Vec model."""
@@ -171,6 +197,10 @@ class TextPreprocessor:
         print("Creating random embedding matrix...")
         self.embedding_matrix = np.random.normal(0, 0.1, (self.vocab_size, embedding_dim))
         self.embedding_matrix[self.PAD_IDX] = np.zeros(embedding_dim)  # PAD token
+    
+    ####### TEXT-SEQUENCE CONVERSION - Transform Between Text and Numerical Format ############
+        # Convert text to numerical sequences for model input and back to text for output
+        # Handles unknown words and adds sequence control tokens (SOS/EOS)
     
     def text_to_sequence(self, text: str) -> List[int]:
         """
@@ -213,6 +243,10 @@ class TextPreprocessor:
         
         return ' '.join(words)
     
+    ####### TRAINING DATA PREPARATION - Create Input-Output Sequence Pairs #########
+        # Generate sliding window sequences for next-word prediction training
+        # Each sequence becomes multiple training examples: [context → next_word]
+    
     def prepare_sequences(self, texts: List[str], max_length: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         Prepare input-output sequences for training following course approach.
@@ -253,6 +287,10 @@ class TextPreprocessor:
         
         return np.array(input_sequences), np.array(target_sequences)
     
+    ####### MODEL INTEGRATION UTILITIES - Export for Neural Network Training ######
+        # Convert processed data to PyTorch format and handle model state persistence
+        # Bridge between text preprocessing and neural network training pipeline
+    
     def get_embedding_matrix(self) -> Optional[torch.Tensor]:
         """
         Get embedding matrix as PyTorch tensor.
@@ -290,7 +328,10 @@ class TextPreprocessor:
         print(f"Preprocessor loaded from {path}")
 
 
-# Utility function following course style
+######################################### PYTORCH INTEGRATION - Training Data Pipeline ########################
+# Convert processed sequences into PyTorch DataLoaders for efficient batch training
+# Handle train/validation splitting and batch creation following deep learning best practices
+
 def create_data_loaders(sequences: np.ndarray, targets: np.ndarray, 
                        batch_size: int = 32, validation_split: float = 0.1) -> Tuple:
     """
