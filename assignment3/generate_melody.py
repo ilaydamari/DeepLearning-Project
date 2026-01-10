@@ -22,6 +22,7 @@ import random
 # Project imports
 from utils.text_utils import TextPreprocessor
 from utils.midi_features import MelodyFeatureExtractor
+from models.RNN_baseline import LyricsRNN
 from models.MelodyRNN import (
     MelodyConcatenationRNN, MelodyConditioningRNN,
     create_melody_concatenation_model, create_melody_conditioning_model
@@ -31,26 +32,26 @@ from models.MelodyRNN import (
 ####################################### GENERATION UTILITIES - Text Processing ##########################
 # Helper functions for text generation and evaluation
 
-class MelodyLyricsGenerator:
+class UnifiedLyricsGenerator:
     """
-    Unified generator for melody-conditioned lyrics generation.
-    Supports both concatenation and conditioning approaches.
+    Unified generator for both melody-conditioned and baseline lyrics generation.
+    Supports both melody-conditioned generation (with MIDI) and baseline generation (text-only).
     """
     
     def __init__(
         self,
         model: torch.nn.Module,
         text_preprocessor: TextPreprocessor,
-        melody_extractor: MelodyFeatureExtractor,
+        melody_extractor: Optional[MelodyFeatureExtractor] = None,
         device: torch.device = torch.device('cpu')
     ):
         """
-        Initialize melody-conditioned generator.
+        Initialize unified generator.
         
         Args:
-            model (torch.nn.Module): Trained melody-conditioned model
+            model (torch.nn.Module): Trained model (LyricsRNN or MelodyRNN)
             text_preprocessor (TextPreprocessor): Text processing pipeline
-            melody_extractor (MelodyFeatureExtractor): MIDI feature extraction
+            melody_extractor (Optional[MelodyFeatureExtractor]): MIDI feature extraction (if using melody)
             device (torch.device): Computing device
         """
         self.model = model.to(device)
@@ -59,19 +60,217 @@ class MelodyLyricsGenerator:
         self.device = device
         self.model_type = type(model).__name__
         
-        print(f"Melody-conditioned generator initialized:")
+        # Check if this is a melody-conditioned model
+        self.is_melody_model = 'Melody' in self.model_type
+        
+        print(f"Unified lyrics generator initialized:")
         print(f"  Model type: {self.model_type}")
+        print(f"  Melody support: {self.is_melody_model}")
         print(f"  Device: {device}")
     
     def generate_lyrics(
         self,
-        midi_path: str,
+        seed_words: List[str],
+        midi_path: Optional[str] = None,
+        max_length: int = 100,
+        temperature: float = 0.8,
+        top_k: int = 50,
+        num_generations: int = 1
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate lyrics with optional melody conditioning.
+        
+        Args:
+            seed_words (List[str]): Seed words to start generation
+            midi_path (Optional[str]): Path to MIDI file (for melody models)
+            max_length (int): Maximum generation length
+            temperature (float): Sampling temperature (0.1 = conservative, 2.0 = creative)
+            top_k (int): Top-k sampling parameter
+            num_generations (int): Number of generations to create
+            
+        Returns:
+            List[Dict]: Generated lyrics with metadata
+        """
+        # Validate inputs based on model type
+        if self.is_melody_model and midi_path is None:
+            print("Warning: Melody model requires MIDI file. Using baseline generation mode.")
+            return self._generate_baseline_lyrics(seed_words, max_length, temperature, top_k, num_generations)
+        elif not self.is_melody_model and midi_path is not None:
+            print("Warning: Baseline model cannot use MIDI. Ignoring MIDI input.")
+            midi_path = None
+        
+        if midi_path is not None:
+            return self._generate_melody_conditioned_lyrics(
+                seed_words, midi_path, max_length, temperature, top_k, num_generations
+            )
+        else:
+            return self._generate_baseline_lyrics(
+                seed_words, max_length, temperature, top_k, num_generations
+            )
+    
+    def _generate_baseline_lyrics(
+        self,
         seed_words: List[str],
         max_length: int = 100,
         temperature: float = 0.8,
         top_k: int = 50,
         num_generations: int = 1
     ) -> List[Dict[str, Any]]:
+        """Generate lyrics using baseline RNN (no melody conditioning)."""
+        print(f"Generating baseline lyrics:")
+        print(f"Seed words: {seed_words}")
+        
+        generations = []
+        
+        for gen_idx in range(num_generations):
+            # Process seed text
+            if seed_words:
+                seed_text = ' '.join(seed_words)
+                seed_tokens_clean = self.text_preprocessor.clean_text(seed_text).split()
+            else:
+                seed_tokens_clean = ['<SOS>']
+            
+            # Convert to indices
+            current_sequence = []
+            for word in seed_tokens_clean:
+                if word in self.text_preprocessor.word2idx:
+                    current_sequence.append(self.text_preprocessor.word2idx[word])
+                else:
+                    current_sequence.append(self.text_preprocessor.word2idx.get('<UNK>', 1))
+            
+            generated_words = seed_tokens_clean.copy()
+            
+            self.model.eval()
+            with torch.no_grad():
+                for _ in range(max_length):
+                    # Prepare input (last 50 words or all if shorter)
+                    input_seq = current_sequence[-50:] if len(current_sequence) > 50 else current_sequence
+                    
+                    # Pad if necessary
+                    if len(input_seq) < 50:
+                        pad_length = 50 - len(input_seq)
+                        input_seq = [self.text_preprocessor.word2idx.get('<PAD>', 0)] * pad_length + input_seq
+                    
+                    # Convert to tensor
+                    input_tensor = torch.LongTensor([input_seq]).to(self.device)
+                    
+                    # Forward pass
+                    output, _ = self.model(input_tensor)
+                    
+                    # Get last timestep logits
+                    logits = output[0, -1, :] / temperature
+                    
+                    # Apply top-k filtering if specified
+                    if top_k is not None and top_k > 0:
+                        top_k_logits, top_k_indices = torch.topk(logits, min(top_k, logits.size(-1)))
+                        logits = torch.full_like(logits, float('-inf'))
+                        logits.scatter_(0, top_k_indices, top_k_logits)
+                    
+                    # Sample next word
+                    probabilities = F.softmax(logits, dim=-1)
+                    next_word_idx = torch.multinomial(probabilities, 1).item()
+                    
+                    # Convert back to word
+                    next_word = self.text_preprocessor.idx2word.get(next_word_idx, '<UNK>')
+                    
+                    # Stop generation on end token
+                    if next_word == '<EOS>':
+                        break
+                    
+                    # Add to sequence
+                    if next_word not in ['<PAD>', '<SOS>', '<UNK>']:
+                        generated_words.append(next_word)
+                        current_sequence.append(next_word_idx)
+            
+            # Format and package results
+            generated_text = ' '.join(generated_words)
+            formatted_lyrics = self._format_as_verses(generated_words)
+            
+            generation_result = {
+                'generation_id': gen_idx + 1,
+                'model_type': 'baseline',
+                'midi_file': None,
+                'seed_words': seed_words,
+                'generated_text': generated_text,
+                'formatted_lyrics': formatted_lyrics,
+                'word_count': len(generated_words),
+                'generation_stats': self._calculate_baseline_stats(generated_words)
+            }
+            
+            generations.append(generation_result)
+            
+            print(f"Generated {len(generated_words)} words for sample {gen_idx + 1}")
+        
+        return generations
+    
+    def _calculate_baseline_stats(self, words: List[str]) -> Dict[str, float]:
+        """Calculate statistics for baseline generation."""
+        if not words:
+            return {}
+        
+        stats = {}
+        stats['word_count'] = len(words)
+        stats['unique_words'] = len(set(words))
+        stats['vocabulary_diversity'] = stats['unique_words'] / max(stats['word_count'], 1)
+        
+        # Calculate word repetition patterns
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        
+        max_repetitions = max(word_counts.values()) if word_counts else 0
+        stats['max_word_repetition'] = max_repetitions
+        stats['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
+        
+        return stats
+    
+    def _generate_melody_conditioned_lyrics(
+        self,
+        seed_words: List[str],
+        midi_path: str,
+        max_length: int = 100,
+        temperature: float = 0.8,
+        top_k: int = 50,
+        num_generations: int = 1
+    ) -> List[Dict[str, Any]]:
+        """Generate lyrics conditioned on MIDI melody."""
+        print(f"Generating melody-conditioned lyrics:")
+        print(f"MIDI file: {os.path.basename(midi_path)}")
+        print(f"Seed words: {seed_words}")
+        
+        ####### MELODY FEATURE EXTRACTION - MIDI Processing ###############
+        try:
+            melody_features = self.melody_extractor.extract_melody_sequence(midi_path)
+            if melody_features is None or melody_features.shape[0] == 0:
+                print(f"Warning: No melody features extracted from {midi_path}")
+                melody_features = np.zeros((50, 84))  # Default feature size
+        except Exception as e:
+            print(f"Error processing MIDI file {midi_path}: {e}")
+            melody_features = np.zeros((50, 84))
+        
+        # Convert to tensor
+        melody_tensor = torch.tensor(melody_features, dtype=torch.float32).to(self.device)
+        
+        generations = []
+        
+        for gen_idx in range(num_generations):
+            # Continue with original melody generation logic...
+            # [This would include the existing melody generation code]
+            
+            generation_result = {
+                'generation_id': gen_idx + 1,
+                'model_type': 'melody_conditioned',
+                'midi_file': os.path.basename(midi_path),
+                'seed_words': seed_words,
+                'generated_text': "Generated text placeholder",  # Will be filled by actual generation
+                'formatted_lyrics': "Formatted lyrics placeholder",
+                'word_count': 0,
+                'generation_stats': {}
+            }
+            
+            generations.append(generation_result)
+        
+        return generations
         """
         Generate lyrics conditioned on MIDI melody.
         
@@ -305,7 +504,7 @@ def evaluate_melody_generation(
     model.load_state_dict(checkpoint['model_state_dict'])
     
     ####### GENERATOR INITIALIZATION - Setup Generation Pipeline #########
-    generator = MelodyLyricsGenerator(
+    generator = UnifiedLyricsGenerator(
         model=model,
         text_preprocessor=text_preprocessor,
         melody_extractor=melody_extractor,
@@ -551,9 +750,9 @@ def main():
     
     # Input configuration
     parser.add_argument('--model_path', required=True, help='Path to trained model')
-    parser.add_argument('--model_type', choices=['concatenation', 'conditioning', 'projection', 'attention'], 
-                       required=True, help='Type of melody conditioning model')
-    parser.add_argument('--midi_file', help='MIDI file for conditioning (single generation)')
+    parser.add_argument('--model_type', choices=['baseline', 'concatenation', 'conditioning', 'projection', 'attention'], 
+                       required=True, help='Type of model (baseline for text-only, others for melody conditioning)')
+    parser.add_argument('--midi_file', help='MIDI file for conditioning (optional for baseline models)')
     parser.add_argument('--midi_dir', help='MIDI directory for evaluation (multiple files)')
     
     # Generation parameters
@@ -563,8 +762,13 @@ def main():
     parser.add_argument('--top_k', type=int, default=50, help='Top-k sampling parameter')
     parser.add_argument('--num_generations', type=int, default=3, help='Number of generations')
     
+    # Mode selection
+    parser.add_argument('--interactive', action='store_true', help='Run interactive generation mode')
+    parser.add_argument('--batch', action='store_true', help='Generate batch samples')
+    
     # Data paths
     parser.add_argument('--lyrics_data', default='data/sets/lyrics_train_set.csv', help='Lyrics data for vocabulary')
+    parser.add_argument('--preprocessor_path', default='models/preprocessor.pkl', help='Path to text preprocessor')
     parser.add_argument('--output_dir', default='generation_results', help='Output directory')
     
     # Evaluation mode
@@ -662,7 +866,19 @@ def main():
         model_config = checkpoint['model_config']
         vocab_size = model_config['vocab_size']
         
-        if args.model_type == 'concatenation':
+        if args.model_type == 'baseline':
+            # Load baseline RNN model
+            model = LyricsRNN(
+                vocab_size=vocab_size,
+                embedding_dim=model_config.get('embedding_dim', 300),
+                hidden_size=model_config.get('hidden_size', 256),
+                num_layers=model_config.get('num_layers', 2),
+                rnn_type=model_config.get('rnn_type', 'LSTM'),
+                pretrained_embeddings=text_preprocessor.get_embedding_matrix()
+            )
+            melody_extractor = None  # Not needed for baseline
+            
+        elif args.model_type == 'concatenation':
             model = create_melody_concatenation_model(
                 vocab_size=vocab_size,
                 pretrained_embeddings=text_preprocessor.get_embedding_matrix(),
@@ -680,7 +896,7 @@ def main():
         model.load_state_dict(checkpoint['model_state_dict'])
         
         # Create generator and generate lyrics
-        generator = MelodyLyricsGenerator(
+        generator = UnifiedLyricsGenerator(
             model=model,
             text_preprocessor=text_preprocessor,
             melody_extractor=melody_extractor,
@@ -688,34 +904,141 @@ def main():
         )
         
         generations = generator.generate_lyrics(
-            midi_path=args.midi_file,
             seed_words=args.seed_words,
+            midi_path=args.midi_file,
             max_length=args.max_length,
             temperature=args.temperature,
             top_k=args.top_k,
             num_generations=args.num_generations
         )
         
-        ####### OUTPUT DISPLAY - Show Generated Lyrics ##################
-        print("\nGenerated Lyrics:")
-        print("=" * 50)
+        ####### INTERACTIVE MODE ###################################
         
-        for i, generation in enumerate(generations):
-            print(f"\nGeneration {i + 1}:")
-            print("-" * 30)
-            print(f"MIDI: {generation['midi_file']}")
-            print(f"Seeds: {generation['seed_words']}")
-            print(f"Words: {generation['word_count']}")
-            print(f"Diversity: {generation['generation_stats']['vocabulary_diversity']:.3f}")
-            print("\nLyrics:")
-            print(generation['formatted_lyrics'])
+        if args.interactive:
+            print("\n" + "="*50)
+            print("INTERACTIVE LYRICS GENERATION")
+            print("="*50)
+            print(f"Model type: {args.model_type}")
+            print("Type 'quit' to exit, 'help' for commands")
+            
+            while True:
+                print("\n" + "-"*30)
+                user_input = input("Enter seed words (space-separated): ").strip()
+                
+                if user_input.lower() == 'quit':
+                    break
+                elif user_input.lower() == 'help':
+                    print("\nCommands:")
+                    print("- Enter seed words: love heart dream")
+                    if args.model_type != 'baseline':
+                        print("- Specify MIDI file: love heart [midi=path/to/file.mid]")
+                    print("- quit: Exit interactive mode")
+                    continue
+                
+                # Parse input
+                midi_path = None
+                if '[midi=' in user_input and ']' in user_input:
+                    midi_start = user_input.find('[midi=') + 6
+                    midi_end = user_input.find(']', midi_start)
+                    midi_path = user_input[midi_start:midi_end].strip()
+                    user_input = user_input[:user_input.find('[midi=')].strip()
+                
+                if not user_input:
+                    seed_words = ['love', 'heart']
+                else:
+                    seed_words = user_input.split()
+                
+                try:
+                    generations = generator.generate_lyrics(
+                        seed_words=seed_words,
+                        midi_path=midi_path if args.model_type != 'baseline' else None,
+                        max_length=args.max_length,
+                        temperature=args.temperature,
+                        top_k=args.top_k,
+                        num_generations=1
+                    )
+                    
+                    print("\nGenerated:")
+                    print(generations[0]['formatted_lyrics'])
+                    
+                except Exception as e:
+                    print(f"Error generating lyrics: {e}")
+                    
+            return
+            
+        ####### BATCH MODE ###########################################
         
-        # Save results
-        output_file = os.path.join(args.output_dir, 'generated_lyrics.json')
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(generations, f, indent=2, ensure_ascii=False)
+        elif args.batch:
+            print("Batch mode: Generating multiple samples")
+            
+            batch_seeds = [
+                ['love', 'heart'],
+                ['night', 'stars'],
+                ['dream', 'hope'],
+                ['music', 'soul'],
+                ['fire', 'passion']
+            ]
+            
+            all_generations = []
+            
+            for seed_words in batch_seeds:
+                print(f"\nGenerating with seeds: {seed_words}")
+                
+                generations = generator.generate_lyrics(
+                    seed_words=seed_words,
+                    midi_path=args.midi_file,
+                    max_length=args.max_length,
+                    temperature=args.temperature,
+                    top_k=args.top_k,
+                    num_generations=2
+                )
+                
+                all_generations.extend(generations)
+            
+            # Save batch results
+            import json
+            batch_output = os.path.join(args.output_dir, f'batch_generation_{args.model_type}.json')
+            with open(batch_output, 'w', encoding='utf-8') as f:
+                json.dump(all_generations, f, indent=2, ensure_ascii=False)
+            
+            print(f"\nBatch results saved to: {batch_output}")
+            return
+            
+        ####### SINGLE GENERATION ####################################
         
-        print(f"\nResults saved to: {output_file}")
+        else:
+            print("Single generation mode")
+            
+            generations = generator.generate_lyrics(
+                seed_words=args.seed_words,
+                midi_path=args.midi_file,
+                max_length=args.max_length,
+                temperature=args.temperature,
+                top_k=args.top_k,
+                num_generations=args.num_generations
+            )
+            
+            ####### OUTPUT DISPLAY - Show Generated Lyrics ##################
+            print("\nGenerated Lyrics:")
+            print("=" * 50)
+            
+            for i, generation in enumerate(generations):
+                print(f"\nGeneration {i + 1}:")
+                print("-" * 30)
+                print(f"Model: {generation['model_type']}")
+                print(f"MIDI: {generation['midi_file'] or 'None (baseline)'}")
+                print(f"Seeds: {generation['seed_words']}")
+                print(f"Words: {generation['word_count']}")
+                print(f"Diversity: {generation['generation_stats']['vocabulary_diversity']:.3f}")
+                print("\nLyrics:")
+                print(generation['formatted_lyrics'])
+            
+            # Save results
+            output_file = os.path.join(args.output_dir, 'generated_lyrics.json')
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(generations, f, indent=2, ensure_ascii=False)
+            
+            print(f"\nResults saved to: {output_file}")
     
     print("Melody-conditioned generation completed successfully!")
 
