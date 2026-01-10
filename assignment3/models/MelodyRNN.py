@@ -129,6 +129,10 @@ class MelodyConcatenationRNN(LyricsRNN):
         self._init_weights()
         
         print(f"Melody Concatenation RNN (Approach A) initialized:")
+        print(f"  - Word embeddings: {embedding_dim}D")
+        print(f"  - Melody features: {melody_feature_dim}D") 
+        print(f"  - Combined input: {self.combined_input_dim}D")
+        print(f"  - RNN type: {rnn_type}")
     
     def _init_weights(self):
         """Initialize model weights."""
@@ -137,10 +141,6 @@ class MelodyConcatenationRNN(LyricsRNN):
                 nn.init.xavier_uniform_(param)
             elif 'bias' in name:
                 nn.init.zeros_(param)
-        print(f"  - Word embeddings: {embedding_dim}D")
-        print(f"  - Melody features: {melody_feature_dim}D") 
-        print(f"  - Combined input: {self.combined_input_dim}D")
-        print(f"  - RNN type: {rnn_type}")
     
     def forward(
         self,
@@ -513,11 +513,11 @@ class MelodyConditioningRNN(LyricsRNN):
         ####### STEP 2: STANDARD RNN PROCESSING - Word Embeddings + RNN ########
         # Get word embeddings (same as parent class)
         embedded_inputs = self.embedding(input_sequences)  # [batch_size, seq_len, embedding_dim]
-        embedded_inputs = self.dropout(embedded_inputs)
+        embedded_inputs = self.dropout_layer(embedded_inputs)
         
         # Process through RNN with melody-conditioned hidden states
         rnn_output, new_hidden = self.rnn(embedded_inputs, hidden)  # [batch, seq_len, hidden_size]
-        rnn_output = self.dropout(rnn_output)
+        rnn_output = self.dropout_layer(rnn_output)
         
         ####### STEP 3: CONTINUOUS MELODY ATTENTION - KEY DIFFERENCE ########
         # Apply continuous melody attention (this is what makes it SIGNIFICANTLY different)
