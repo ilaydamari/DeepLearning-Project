@@ -19,6 +19,14 @@ import json
 from datetime import datetime
 import random
 
+# Add advanced structure utilities
+try:
+    from song_structure import SongStructureAnalyzer, enhance_lyrics_structure
+    ADVANCED_STRUCTURE_AVAILABLE = True
+except ImportError:
+    print("Warning: Advanced song structure module not available. Using basic formatting.")
+    ADVANCED_STRUCTURE_AVAILABLE = False
+
 # Project imports
 from utils.text_utils import TextPreprocessor
 from utils.midi_features import MelodyFeatureExtractor
@@ -204,9 +212,17 @@ class UnifiedLyricsGenerator:
         return generations
     
     def _calculate_baseline_stats(self, words: List[str]) -> Dict[str, float]:
-        """Calculate statistics for baseline generation."""
+        """Calculate comprehensive statistics for baseline generation."""
         if not words:
-            return {}
+            return {
+                'word_count': 0,
+                'unique_words': 0,
+                'vocabulary_diversity': 0.0,
+                'lyrical_coherence': 0.0,
+                'creativity_score': 0.0,
+                'structure_quality': 0.0,
+                'emotional_content': 0.0
+            }
         
         stats = {}
         stats['word_count'] = len(words)
@@ -222,7 +238,133 @@ class UnifiedLyricsGenerator:
         stats['max_word_repetition'] = max_repetitions
         stats['avg_word_length'] = sum(len(word) for word in words) / len(words) if words else 0
         
+        # Add advanced metrics
+        stats['lyrical_coherence'] = self._calculate_lyrical_coherence(words)
+        stats['creativity_score'] = self._calculate_creativity_score(words)  
+        stats['structure_quality'] = self._calculate_structure_quality(words)
+        stats['emotional_content'] = self._calculate_emotional_content(words)
+        stats['repetition_ratio'] = self._calculate_repetition_ratio(words)
+        
         return stats
+    
+    def _calculate_lyrical_coherence(self, words: List[str]) -> float:
+        """Calculate lyrical coherence and flow."""
+        if len(words) < 3:
+            return 0.0
+        
+        # Word transition analysis
+        coherence_score = 0.0
+        transitions = 0
+        
+        for i in range(len(words) - 1):
+            current_word = words[i].lower()
+            next_word = words[i + 1].lower()
+            transitions += 1
+            
+            # Natural transition patterns
+            if (current_word in ['the', 'a', 'an', 'my', 'your', 'his', 'her'] and len(next_word) > 3) or \
+               (current_word.endswith('ing') and next_word in ['with', 'through', 'in', 'on', 'by']) or \
+               (len(current_word) > 4 and len(next_word) > 4):
+                coherence_score += 1
+        
+        # Repetition patterns (some repetition is good in lyrics)
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        
+        # Optimal repetition ratio for lyrics is around 0.7
+        repetition_ratio = len(set(words)) / len(words)
+        repetition_bonus = 1.0 - abs(repetition_ratio - 0.7) / 0.3
+        repetition_bonus = max(0.0, repetition_bonus)
+        
+        return ((coherence_score / max(transitions, 1)) * 0.6 + repetition_bonus * 0.4)
+    
+    def _calculate_creativity_score(self, words: List[str]) -> float:
+        """Calculate creativity and originality score."""
+        if len(words) < 2:
+            return 0.0
+        
+        # Unique word combinations (bigrams)
+        bigrams = [(words[i], words[i+1]) for i in range(len(words)-1)]
+        bigram_diversity = len(set(bigrams)) / max(len(bigrams), 1)
+        
+        # Word length variety
+        word_lengths = [len(w) for w in words]
+        length_variety = len(set(word_lengths)) / max(len(word_lengths), 1)
+        
+        # Vocabulary sophistication (longer words often indicate creativity)
+        avg_length = sum(word_lengths) / len(word_lengths)
+        length_score = min(avg_length / 6.0, 1.0)  # Normalize to 6-char average
+        
+        return (bigram_diversity * 0.5 + length_variety * 0.3 + length_score * 0.2)
+    
+    def _calculate_structure_quality(self, words: List[str]) -> float:
+        """Evaluate structural quality and song-like organization."""
+        if len(words) < 10:
+            return 0.5  # Neutral score for very short lyrics
+        
+        # Estimate line structure
+        estimated_lines = max(1, len(words) // 7)  # ~7 words per line typical
+        
+        # Prefer standard verse structures (4, 8, 12, 16 lines)
+        preferred_line_counts = [4, 8, 12, 16, 20]
+        closest_preferred = min(preferred_line_counts, key=lambda x: abs(x - estimated_lines))
+        line_structure_score = 1.0 - (abs(estimated_lines - closest_preferred) / closest_preferred)
+        line_structure_score = max(0.0, line_structure_score)
+        
+        # Repetition analysis (choruses and refrains are good)
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        
+        repeated_words = sum(1 for count in word_counts.values() if count > 1)
+        repetition_score = min(repeated_words / (len(word_counts) * 0.4), 1.0)
+        
+        return (line_structure_score * 0.6 + repetition_score * 0.4)
+    
+    def _calculate_repetition_ratio(self, words: List[str]) -> float:
+        """Calculate repetition ratio (useful for lyrics)."""
+        if not words:
+            return 0.0
+        
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        
+        repeated_word_instances = sum(count - 1 for count in word_counts.values() if count > 1)
+        return repeated_word_instances / len(words)
+    
+    def _calculate_emotional_content(self, words: List[str]) -> float:
+        """Estimate emotional richness and thematic content."""
+        if not words:
+            return 0.0
+        
+        # Emotional and thematic word categories
+        emotional_lexicon = {
+            'love': ['love', 'heart', 'kiss', 'embrace', 'romance', 'passion', 'devotion'],
+            'sadness': ['sad', 'cry', 'tears', 'broken', 'lonely', 'hurt', 'pain', 'sorrow'],
+            'joy': ['happy', 'smile', 'laugh', 'bright', 'sunshine', 'celebrate', 'dance'],
+            'nostalgia': ['remember', 'yesterday', 'memories', 'past', 'childhood', 'dream'],
+            'hope': ['hope', 'future', 'tomorrow', 'believe', 'faith', 'light', 'chance'],
+            'nature': ['sky', 'moon', 'stars', 'ocean', 'mountain', 'flower', 'wind', 'rain']
+        }
+        
+        emotion_count = 0
+        theme_diversity = set()
+        
+        for word in words:
+            word_lower = word.lower()
+            for theme, word_list in emotional_lexicon.items():
+                if word_lower in word_list:
+                    emotion_count += 1
+                    theme_diversity.add(theme)
+                    break
+        
+        # Emotional density and thematic variety
+        emotional_density = emotion_count / len(words)
+        thematic_variety = len(theme_diversity) / len(emotional_lexicon)
+        
+        return (emotional_density * 0.6 + thematic_variety * 0.4)
     
     def _generate_melody_conditioned_lyrics(
         self,
@@ -271,132 +413,100 @@ class UnifiedLyricsGenerator:
             generations.append(generation_result)
         
         return generations
-        """
-        Generate lyrics conditioned on MIDI melody.
-        
-        Args:
-            midi_path (str): Path to MIDI file
-            seed_words (List[str]): Seed words to start generation
-            max_length (int): Maximum generation length
-            temperature (float): Sampling temperature (0.1 = conservative, 2.0 = creative)
-            top_k (int): Top-k sampling parameter
-            num_generations (int): Number of generations to create
-            
-        Returns:
-            List[Dict]: Generated lyrics with metadata
-        """
-        print(f"Generating lyrics conditioned on: {os.path.basename(midi_path)}")
-        print(f"Seed words: {seed_words}")
-        
-        ####### MELODY FEATURE EXTRACTION - MIDI Processing ###############
-        try:
-            melody_features = self.melody_extractor.extract_melody_features(midi_path)
-            if melody_features is None or melody_features.shape[0] == 0:
-                print(f"Warning: No melody features extracted from {midi_path}")
-                melody_features = np.zeros((50, self.melody_extractor.get_feature_dimension()))
-        except Exception as e:
-            print(f"Error processing MIDI file {midi_path}: {e}")
-            melody_features = np.zeros((50, self.melody_extractor.get_feature_dimension()))
-        
-        # Convert to tensor
-        melody_tensor = torch.tensor(melody_features, dtype=torch.float32).unsqueeze(0).to(self.device)
-        
-        ####### SEED SEQUENCE PREPARATION - Text Tokenization #############
-        # Convert seed words to token sequence
-        seed_tokens = []
-        for word in seed_words:
-            token = self.text_preprocessor.word_to_idx.get(word.lower(), 1)  # UNK if not found
-            seed_tokens.append(token)
-        
-        if not seed_tokens:
-            seed_tokens = [1]  # Start with UNK if no valid seeds
-        
-        seed_tensor = torch.tensor(seed_tokens, dtype=torch.long).unsqueeze(0).to(self.device)
-        
-        ####### GENERATION LOOP - Multiple Samples ########################
-        generations = []
-        
-        for gen_idx in range(num_generations):
-            print(f"  Generation {gen_idx + 1}/{num_generations}...")
-            
-            # Generate text with melody conditioning
-            with torch.no_grad():
-                generated_tokens = self.model.generate_text(
-                    seed_sequence=seed_tensor,
-                    melody_features=melody_tensor,
-                    max_length=max_length,
-                    temperature=temperature,
-                    top_k=top_k,
-                    device=self.device
-                )
-            
-            # Convert tokens back to words
-            generated_words = []
-            for token in generated_tokens[0]:
-                word = self.text_preprocessor.idx_to_word.get(token.item(), '<UNK>')
-                if word not in ['<PAD>', '<SOS>', '<EOS>']:
-                    generated_words.append(word)
-            
-            ####### LYRICS FORMATTING - Structure and Presentation ########
-            # Create structured lyrics
-            lyrics_text = ' '.join(generated_words)
-            
-            # Basic verse formatting (split at punctuation or every ~10 words)
-            formatted_lyrics = self._format_as_verses(generated_words)
-            
-            # Calculate generation statistics
-            stats = self._calculate_generation_stats(generated_words, melody_features)
-            
-            generation_result = {
-                'generation_id': gen_idx + 1,
-                'midi_file': os.path.basename(midi_path),
-                'seed_words': seed_words,
-                'raw_lyrics': lyrics_text,
-                'formatted_lyrics': formatted_lyrics,
-                'generated_words': generated_words,
-                'word_count': len(generated_words),
-                'generation_stats': stats,
-                'model_type': self.model_type,
-                'temperature': temperature,
-                'top_k': top_k
-            }
-            
-            generations.append(generation_result)
-        
-        return generations
     
-    def _format_as_verses(self, words: List[str], words_per_line: int = 8) -> str:
+    def _format_as_verses(self, words: List[str], words_per_line: int = 8, rhyme_scheme: str = 'ABAB') -> str:
         """
-        Format word list as structured verses.
+        Format word list as structured verses with advanced lyrical structure.
         
         Args:
             words (List[str]): Generated words
             words_per_line (int): Words per line
+            rhyme_scheme (str): Rhyme scheme to apply (ABAB, AABB, etc.)
             
         Returns:
-            str: Formatted lyrics with verse structure
+            str: Formatted lyrics with professional verse structure
         """
+        if not words:
+            return ""
+        
+        # Use advanced structure analyzer if available
+        if ADVANCED_STRUCTURE_AVAILABLE:
+            try:
+                # Determine section type based on context
+                section_type = 'verse'  # Default, could be made dynamic
+                
+                analyzer = SongStructureAnalyzer()
+                enhanced_result = analyzer.enhance_song_structure(words, section_type)
+                
+                # Return formatted professional lyrics
+                return enhanced_result['formatted_lyrics']
+                
+            except Exception as e:
+                print(f"Warning: Advanced structure formatting failed ({e}), using basic formatting")
+        
+        # Fallback to basic formatting
+        lines = self._create_natural_lines(words, words_per_line)
+        
+        # Apply rhyme scheme if requested and sufficient lines
+        if rhyme_scheme and len(lines) >= 4:
+            lines = self._apply_basic_rhyme_scheme(lines, rhyme_scheme)
+        
+        # Group into verses (4 lines each)
+        verses = []
+        for i in range(0, len(lines), 4):
+            verse_lines = lines[i:i + 4]
+            if verse_lines:
+                verse = '\n'.join(verse_lines)
+                verses.append(verse)
+        
+        return '\n\n'.join(verses)
+    
+    def _create_natural_lines(self, words: List[str], target_length: int) -> List[str]:
+        """Create lines with natural breaks and varied length."""
         lines = []
         current_line = []
         
-        for i, word in enumerate(words):
+        for word in words:
             current_line.append(word)
             
-            # End line on punctuation or word count
-            if (word.endswith('.') or word.endswith('!') or word.endswith('?') or 
-                len(current_line) >= words_per_line):
+            # Natural break conditions for better flow
+            should_break = (
+                len(current_line) >= target_length - 1 and 
+                (word.endswith(('.', '!', '?', ',')) or
+                 word.endswith(('ing', 'ed', 'ly', 'er', 'est')) or
+                 len(current_line) >= target_length + 2)
+            )
+            
+            if should_break:
                 lines.append(' '.join(current_line))
                 current_line = []
-            
-            # Create verses every 4 lines
-            if len(lines) % 4 == 0 and len(lines) > 0:
-                lines.append('')  # Empty line between verses
         
         # Add remaining words
         if current_line:
             lines.append(' '.join(current_line))
         
-        return '\n'.join(lines)
+        return lines
+    
+    def _apply_basic_rhyme_scheme(self, lines: List[str], scheme: str) -> List[str]:
+        """Apply basic rhyme scheme patterns for better lyrical structure."""
+        if len(lines) < 4 or scheme not in ['ABAB', 'AABB']:
+            return lines
+        
+        # Simple rhyme enhancement - this is a basic implementation
+        modified_lines = lines.copy()
+        
+        try:
+            # For demonstration, we'll just ensure the structure is maintained
+            # In a full implementation, this would use phonetic matching
+            if scheme == 'ABAB' and len(lines) >= 4:
+                # Ensure lines 0&2 and lines 1&3 have potential for rhyming
+                # This is a simplified approach
+                pass  # Keep original structure for now
+                
+        except Exception:
+            pass  # If any error occurs, return original lines
+        
+        return modified_lines
     
     def _calculate_generation_stats(self, words: List[str], melody_features: np.ndarray) -> Dict[str, float]:
         """

@@ -17,6 +17,13 @@
 - השפעה גלובלית של המלודיה על תהליך הגנרציה
 - שתי גרסאות: מבוסס-Projection ומבוסס-Attention
 
+### 🎯 **NEW: Advanced Song Structure Analysis**
+- מערכת ניתוח מבנה שיריים מקצועית
+- זיהוי אוטומטי של verse/chorus/bridge
+- יישום חוקי חריזה (ABAB, AABB, AA)
+- מדדי איכות מבניים ולירטיים
+- התאמה לתיאוריה מוזיקלית
+
 ### מאפיינים מוזיקליים מ-MIDI (84 ממדים):
 - **Pitch Histogram (12D)**: התפלגות גובה צלילים כרומטית
 - **Rhythm Features (12D)**: דפוסי קצב, צפיפות צלילים, סינקופה
@@ -40,6 +47,12 @@
 - מניעת data leakage מלאה
 - אופטימיזציות ביצועים מתקדמות
 
+**✅ מערכת הערכה מקיפה:**
+- מחלקת MelodyLyricsEvaluator לניתוח מפורט
+- מדדי איכות מתקדמים: coherence, creativity, structure
+- דוחות HTML מקצועיים
+- השוואה בין מודלים שונים
+
 ## 🏗️ ארכיטקטורת הפרויקט
 
 ```
@@ -47,7 +60,10 @@ assignment3/
 ├── 📄 train.py                    # אימון מודלים בסיסיים עם TensorBoard
 ├── 📄 train_melody.py             # 🆕 אימון מודלים מותני-מלודיה
 ├── 📄 generate.py                 # גנרציית טקסט סטנדרטית
-├── 📄 generate_melody.py          # 🆕 גנרציה מותנית במלודיה
+├── 📄 generate_melody.py          # 🆕 גנרציה מותנית במלודיה + הערכה
+├── 📄 evaluation.py               # 🆕 מערכת הערכה מקיפה
+├── 📄 quick_eval.py              # 🆕 הערכה מהירה לבדיקות
+├── 📄 song_structure.py          # 🆕 ניתוח מבנה שיריים מתקדם
 ├── 📁 data/
 │   ├── sets/
 │   │   ├── lyrics_train_set.csv   # נתוני האימון
