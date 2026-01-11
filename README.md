@@ -42,12 +42,93 @@
 - **Instrument Features (16D)**: זיהוי וניתוח קטגוריות כלי נגינה
 - **Temporal Features**: חילוץ מאפיינים מיושר לפי פעימה
 
-## 🔧 עדכונים טכניים מרכזיים
+## 🏆 **NEW: Complete Assignment 3 Protocol (For Grade 100)** ⭐
 
-**✅ אינטגרציית MIDI מלאה:**
-- עיבוד מתקדם של קבצי MIDI באמצעות PrettyMIDI
-- יישור טמפורלי בין מלודיה ומילות שיר
-- מערכת אימון ייעודית למודלים מותני-מלודיה
+### 🚀 **Automated Experiment Suite**
+**חדש! קובץ**: `run_all_experiments.py` - הרצת 30 הניסויים הנדרשים למרצה
+
+🎯 **פרוטוקול בדיקה מלא (לפי הערות המרצה)**:
+- 5 מנגינות MIDI מקבצי הטסט
+- 3 מילות זרע קבועות: "love", "night", "dream"
+- 2 מודלים: Concatenation + Conditioning
+- **סה"כ: 30 שירים שנוצרו** בפורמט מסודר לדוח
+
+```bash
+# הרצת כל 30 הניסויים הנדרשים לציון 100
+python run_all_experiments.py
+
+# הקובץ ייצר:
+# 📊 experiment_results/all_generated_songs_table.xlsx - טבלה מסודרת לנספח
+# 📋 30 קבצי TXT עם כל השירים
+# 📊 סיכום JSON עם סטטיסטיקות
+```
+
+### 🔍 **Qualitative Analysis (Critical for Grade 100)**
+**חדש! קובץ**: `qualitative_analysis.py` - ניתוח איכותי מפורט
+
+🎯 **מה שהמרצה דרש**: ניתוח השפעת מלודיה ומילות זרע (לא רק ביצועים טכניים)
+
+```bash
+# הרצת ניתוח איכותי מקיף
+python qualitative_analysis.py
+
+# הקובץ ייצר:
+# 📝 qualitative_analysis_section.txt - טקסט מוכן לחלק 4 בדוח
+# 📊 qualitative_analysis_data.json - נתונים מפורטים
+# 🎆 תובנות מפתח לשימוש ישיר בדוח
+```
+
+🔍 **אנליזה מותאמת להערות המרצה:**
+- **השפעת מלודיה**: איך "Simon Says" משפיעה שונה מ-"Tribal Dance"?
+- **השפעת מילת זרע**: איך "love" vs "night" vs "dream" משנות את הכיוון?
+- **השוואת מודלים**: Concatenation vs Conditioning - דוגמאות זה לצד זה
+- **מבנה שירים**: אורך, חריזה, קוהרנטיות
+
+### 📄 **Complete Report Structure (6 Pages Max)**
+🎯 **חלוקה מחדש לפי הערות המרצה:**
+```
+1. מבוא (0.5 עמוד)
+2. תיאור ארכיטקטורות (1.5 עמוד)
+3. תוצאות אימון (0.5 עמוד)
+4. ⭐ ניתוח השפעת מלודיה ומילות זרע (3 עמודים) ⭐
+5. מסקנות (0.5 עמוד)
+
+📋 נספח A: טבלת 30 השירים (קובץ Excel מסודר)
+📋 נספח B: גרפי TensorBoard
+```
+
+### 🕰️ **Step-by-Step Protocol for Grade 100**
+
+#### **שלב 1: אימון מודלים**
+```bash
+python train_melody.py --model_type compare --num_epochs 15 --batch_size 16
+# צלם צילומי מסך של TensorBoard → חלק "TRAINING RESULTS" בדוח
+```
+
+#### **שלב 2: הרצת 30 הניסויים**
+```bash
+python run_all_experiments.py
+# שמור את all_generated_songs_table.xlsx → נספח בדוח
+```
+
+#### **שלב 3: ניתוח איכותי**
+```bash
+python qualitative_analysis.py
+# העתק מ-qualitative_analysis_section.txt → חלק 4 בדוח
+```
+
+#### **שלב 4: הכנת דוח**
+- פורמט: DOCX + PDF, Calibri 12pt, שוליים 2.5 ס"מ
+- דגש על ניתוח איכותי, לא רק טכני
+- כלול 30 השירים בטבלה מסודרת
+
+⚡ **משימות הקוד מודרנ ומוכן לשימוש!** רק בצע את השלבים לפי הסדר לקבלת ציון 100! 🚀
+
+---
+
+## 🏆 **LEGACY: Original Training Instructions** 
+
+### 🎼 אימון מודלים מותני-מלודיה (ORIGINAL)
 
 **✅ ארכיטקטורה מקצועית:**
 - מודלים מותני-מלודיה עם שתי גישות שונות
@@ -112,7 +193,33 @@ pip install gensim pandas numpy tensorboard
 pip install pretty-midi librosa  # 🆕 לעיבוד MIDI
 ```
 
-### 🎼 אימון מודלים מותני-מלודיה (NEW)
+### � **PRIORITY: Complete Assignment Protocol (Use This First)**
+
+🚨 **השתמש בקבצים החדשים לציון 100:**
+
+```bash
+# 1. אימון מודלים (פעם אחת)
+python train_melody.py --model_type compare --num_epochs 15
+
+# 2. הרצת 30 ניסויים אוטומטית ⭐
+python run_all_experiments.py
+
+# 3. יצירת ניתוח איכותי מקיף ⭐
+python qualitative_analysis.py
+
+# 4. צפייה בתוצאות TensorBoard
+tensorboard --logdir runs/
+```
+
+**פלטים שייצרו עבור הדוח:**
+- 📊 `experiment_results/all_generated_songs_table.xlsx` - **טבלה מסודרת לנספח**
+- 📝 `qualitative_analysis_section.txt` - **טקסט מוכן לחלק 4 בדוח**
+- 📁 30 קבצי שירים בקישורים מסודרים
+- 📈 גרפי TensorBoard מוכנים לצילום מסך
+
+---
+
+### 🎼 **אימון מודלים מותני-מלודיה (MANUAL TRAINING)**
 
 **אימון כל הגישות להשוואה:**
 ```bash
@@ -615,7 +722,46 @@ config = {
 pip install torch torchvision pandas numpy matplotlib seaborn gensim tqdm
 pip install tensorboard pretty-midi librosa  # נדרש למודלים מותני-מלודיה
 ```
+### 🎆 **NEW: Advanced Analysis Tools** ⭐
 
+#### 📄 `run_all_experiments.py` - **Automated 30-Song Generation**
+קובץ חדש שמריץ אוטומטית את כל 30 הניסויים הנדרשים למרצה:
+
+**תוכלם:**
+- 5 מנגינות MIDI מקבצי test/
+- 3 מילות זרע: "love", "night", "dream"
+- 2 מודלים: Concatenation + Conditioning  
+- יצירת טבלה Excel מסודרת לנספח
+- הנחיות מפורטות לניתוח איכותי
+
+**פלטים:**
+```
+experiment_results/
+├── all_generated_songs_table.xlsx     # טבלה מסודרת לנספח בדוח
+├── concatenation_*.txt              # 15 שירים Concatenation
+├── conditioning_*.txt               # 15 שירים Conditioning
+└── experiment_summary.json         # סיכום סטטיסטיקות
+```
+
+#### 🔍 `qualitative_analysis.py` - **Critical for Grade 100**
+קובצ חדש שמנתח את השפעת המלודיה ומילות הזרע (לא רק ביצועים טכניים):
+
+**ניתוחים שמבצע:**
+- 🎵 השפעת מלודיות שונות על תוכן לירי
+- 🌱 השפעת מילות זרע על התפתחות תמטית
+- 🤖 השוואה איכותית Concatenation vs Conditioning
+- 🎼 איכות מבנה שירים והתאמה למלודיה
+
+**פלטים:**
+```
+experiment_results/
+├── qualitative_analysis_section.txt   # טקסט מוכן לחלק 4 בדוח
+├── qualitative_analysis_data.json    # נתונים מפורטים JSON
+└── [Console Output]                   # תובנות מפתח לשימוש ישיר
+```
+
+🎯 **מה שהמרצה דרש במפורש:**
+> "הדוח עצמו מתמקד בניתוח השפעת המלודיה והמילה הראשונה על התוצר, ולא רק בביצועים הטכניים."
 ### 🆕 **קבצי עזר חדשים:**
 
 #### 📄 `evaluation.py` - מערכת הערכה מקיפה
