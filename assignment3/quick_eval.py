@@ -56,7 +56,7 @@ def quick_evaluation_run(models_dir: str, data_dir: str, num_midi_files: int = 5
         evaluator.load_trained_models()
         
         if not evaluator.models:
-            print("❌ No models found! Please check models directory.")
+            print("No models found! Please check models directory.")
             return
         
         print(f"\n✓ Found {len(evaluator.models)} models: {list(evaluator.models.keys())}")
@@ -69,7 +69,7 @@ def quick_evaluation_run(models_dir: str, data_dir: str, num_midi_files: int = 5
         
         # Print quick summary
         print("\n" + "="*60)
-        print("📊 QUICK EVALUATION SUMMARY")
+        print("QUICK EVALUATION SUMMARY")
         print("="*60)
         
         print(f"✓ Total generations: {len(results['detailed_results'])}")
@@ -83,20 +83,20 @@ def quick_evaluation_run(models_dir: str, data_dir: str, num_midi_files: int = 5
             print(f"  • {metric.replace('_', ' ').title()}: {model}")
         
         # Show average scores
-        print("\n📈 Average Scores by Model:")
+        print("\nAverage Scores by Model:")
         for model_name, stats in results['summary_statistics'].items():
             coherence = stats.get('avg_lyrical_coherence', 0)
             creativity = stats.get('avg_creativity_score', 0)
             structure = stats.get('avg_structure_fit', 0)
             print(f"  • {model_name}: Coherence={coherence:.3f}, Creativity={creativity:.3f}, Structure={structure:.3f}")
         
-        print(f"\n📁 Detailed results saved to: {output_dir}/")
+        print(f"\nDetailed results saved to: {output_dir}/")
         print("="*60)
         
         return results
         
     except Exception as e:
-        print(f"\n❌ Evaluation failed: {e}")
+        print(f"\nEvaluation failed: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -120,7 +120,7 @@ def check_project_structure(base_dir: str):
                 missing.append(f"{category}: {path}")
     
     if missing:
-        print("⚠️  Missing required files/directories:")
+        print("Missing required files/directories:")
         for item in missing:
             print(f"   - {item}")
         print("\nPlease ensure all required files are present before running evaluation.")
@@ -165,20 +165,20 @@ def main():
     )
     
     if results:
-        print("\n🎉 Quick evaluation completed successfully!")
+        print("\nQuick evaluation completed successfully!")
         
         # Generate assignment completion checklist
-        print("\n📋 Evaluation Summary:")
+        print("\nEvaluation Summary:")
         print("1-4: Data processing and model architecture (implemented)")
-        print("✅ 5-18: Training and generation pipeline (implemented)")
-        print("✅ 19: Song structure formatting (enhanced)")
-        print("✅ 20: Test set evaluation (systematic testing implemented)")
-        print("✅ 21: Multiple seed combinations (3 combinations per MIDI)")
-        print("✅ 22: Model comparison analysis (concatenation vs conditioning)")
+        print("5-18: Training and generation pipeline (implemented)")
+        print("19: Song structure formatting (enhanced)")
+        print("20: Test set evaluation (systematic testing implemented)")
+        print("21: Multiple seed combinations (3 combinations per MIDI)")
+        print("22: Model comparison analysis (concatenation vs conditioning)")
         
-        print(f"\n📊 Generated {len(results['detailed_results'])} test cases covering all requirements!")
+        print(f"\nGenerated {len(results['detailed_results'])} test cases covering all requirements!")
     else:
-        print("\n❌ Evaluation encountered errors. Check logs above.")
+        print("\nEvaluation encountered errors. Check logs above.")
 
 
 if __name__ == "__main__":

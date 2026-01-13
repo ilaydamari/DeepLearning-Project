@@ -15,14 +15,3 @@ tqdm>=4.62.0
 python-dateutil>=2.8.2
 pytz>=2021.1
 kaleido>=0.2.1
-argparse
-pathlib
-collections
-re
-pickle
-json
-datetime
-random
-os
-sys
-typing
