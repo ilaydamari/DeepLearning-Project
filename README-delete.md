@@ -7,7 +7,7 @@
 
 ### שתי גישות למיזוג מלודיה עם טקסט:
 
-### שתי גישות למיזוג מלודיה עם טקסט (מותאמות להערות המרצה):
+### שתי גישות למיזוג מלודיה עם טקסט :
 
 **🎵 גישה A: Direct Concatenation at Input Level**
 - שילוב מאפיינים מוזיקליים (84D) עם word embeddings (300D) בכל timestep
@@ -17,7 +17,7 @@
 
 **🎼 גישה B: Initial Conditioning + Continuous Attention (שינוי משמעותי)**
 - שלב 1: מלודיה → וקטור conditioning גלובלי → אתחול hidden states
-- שלב 2: word embeddings רגילים (300D) → RNN
+- שלב 2: word embeddings רגילים (300D) → RNNf
 - שלב 3: attention רציף בין פלט RNN למאפיינים מלודיים
 - שלב 4: גייטים לשילוב הפלט המקורי עם הattention
 - ארכיטקטורה: Melody Conditioning → Word RNN → Attention → Gated Fusion
@@ -42,19 +42,19 @@
 - **Instrument Features (16D)**: זיהוי וניתוח קטגוריות כלי נגינה
 - **Temporal Features**: חילוץ מאפיינים מיושר לפי פעימה
 
-## 🏆 **NEW: Complete Assignment 3 Protocol (For Grade 100)** ⭐
+## 🏆 **NEW: Complete Assignment 3 Protocol** ⭐
 
 ### 🚀 **Automated Experiment Suite**
-**חדש! קובץ**: `run_all_experiments.py` - הרצת 30 הניסויים הנדרשים למרצה
+**חדש! קובץ**: `run_all_experiments.py` - הרצת 30 הניסויים הנדרשים 
 
-🎯 **פרוטוקול בדיקה מלא (לפי הערות המרצה)**:
+🎯 **פרוטוקול בדיקה מלא **:
 - 5 מנגינות MIDI מקבצי הטסט
 - 3 מילות זרע קבועות: "love", "night", "dream"
 - 2 מודלים: Concatenation + Conditioning
 - **סה"כ: 30 שירים שנוצרו** בפורמט מסודר לדוח
 
 ```bash
-# הרצת כל 30 הניסויים הנדרשים לציון 100
+# הרצת כל 30 הניסויים הנדרשים 
 python run_all_experiments.py
 
 # הקובץ ייצר:
@@ -63,10 +63,10 @@ python run_all_experiments.py
 # 📊 סיכום JSON עם סטטיסטיקות
 ```
 
-### 🔍 **Qualitative Analysis (Critical for Grade 100)**
+### 🔍 **Qualitative Analysis**
 **חדש! קובץ**: `qualitative_analysis.py` - ניתוח איכותי מפורט
 
-🎯 **מה שהמרצה דרש**: ניתוח השפעת מלודיה ומילות זרע (לא רק ביצועים טכניים)
+🎯 : ניתוח השפעת מלודיה ומילות זרע (לא רק ביצועים טכניים)
 
 ```bash
 # הרצת ניתוח איכותי מקיף
@@ -78,14 +78,12 @@ python qualitative_analysis.py
 # 🎆 תובנות מפתח לשימוש ישיר בדוח
 ```
 
-🔍 **אנליזה מותאמת להערות המרצה:**
 - **השפעת מלודיה**: איך "Simon Says" משפיעה שונה מ-"Tribal Dance"?
 - **השפעת מילת זרע**: איך "love" vs "night" vs "dream" משנות את הכיוון?
 - **השוואת מודלים**: Concatenation vs Conditioning - דוגמאות זה לצד זה
 - **מבנה שירים**: אורך, חריזה, קוהרנטיות
 
 ### 📄 **Complete Report Structure (6 Pages Max)**
-🎯 **חלוקה מחדש לפי הערות המרצה:**
 ```
 1. מבוא (0.5 עמוד)
 2. תיאור ארכיטקטורות (1.5 עמוד)
@@ -97,7 +95,7 @@ python qualitative_analysis.py
 📋 נספח B: גרפי TensorBoard
 ```
 
-### 🕰️ **Step-by-Step Protocol for Grade 100**
+### 🕰️ **Step-by-Step Protocol**
 
 #### **שלב 1: אימון מודלים**
 ```bash
@@ -122,7 +120,7 @@ python qualitative_analysis.py
 - דגש על ניתוח איכותי, לא רק טכני
 - כלול 30 השירים בטבלה מסודרת
 
-⚡ **משימות הקוד מודרנ ומוכן לשימוש!** רק בצע את השלבים לפי הסדר לקבלת ציון 100! 🚀
+⚡ **משימות הקוד מודרנ ומוכן לשימוש!** 🚀
 
 ---
 
@@ -146,7 +144,6 @@ python qualitative_analysis.py
 - דוחות HTML מקצועיים
 - השוואה בין מודלים שונים
 
-**✅ עדכונים לפי הערות המרצה:**
 - **שינויים משמעותיים בגישות**: גישה B שונה בצורה מהותית עם continuous attention
 - **גנרציה לא-דטרמיניסטית**: שימוש חובה ב-probabilistic sampling (torch.multinomial)
 - **מניעת argmax**: כל המודלים משתמשים ב-temperature + top-k sampling בלבד
@@ -195,7 +192,7 @@ pip install pretty-midi librosa  # 🆕 לעיבוד MIDI
 
 ### � **PRIORITY: Complete Assignment Protocol (Use This First)**
 
-🚨 **השתמש בקבצים החדשים לציון 100:**
+🚨 **השתמש בקבצים החדשים :**
 
 ```bash
 # 1. אימון מודלים (פעם אחת)
@@ -271,7 +268,7 @@ python generate_melody.py --model_path models/best_model.pth --model_type baseli
 
 ## 📊 מטריקות והערכה
 
-### 🆕 גנרציה לא-דטרמיניסטית (מותאם להערות המרצה)
+### 🆕 גנרציה לא-דטרמיניסטית 
 **עקרון חשוב**: "your mechanism for selecting the next word should not be deterministic"
 - ✅ שימוש ב-probabilistic sampling (torch.multinomial)  
 - ✅ מניעת argmax דטרמיניסטי
@@ -305,7 +302,7 @@ tensorboard --logdir=runs
 | V1 | LSTM | 2 | 256 | 0.2 | 0.0005 | קונסרבטיבי |
 | V2 | GRU | 3 | 512 | 0.4 | 0.001 | אגרסיבי |
 
-### 🆕 מודלים מותני-מלודיה (עדכון לפי הערות המרצה)
+### 🆕 מודלים מותני-מלודיה
 
 | גישה | ממד Input | ארכיטקטורה | שיטת Conditioning |
 |------|----------|-------------|-------------------|
@@ -693,7 +690,6 @@ criterion = nn.CrossEntropyLoss(ignore_index=0)  # מתעלם מ-PAD tokens
 perplexity = np.exp(cross_entropy_loss)
 ```
 - פרפלקסיטי נמוכה = מודל טוב יותר
-- פרפלקסיטי של ~100-200 נחשבת טובה לגנרציית טקסט
 
 ### Learning Rate Scheduling
 ```python
@@ -725,8 +721,7 @@ pip install tensorboard pretty-midi librosa  # נדרש למודלים מותנ�
 ### 🎆 **NEW: Advanced Analysis Tools** ⭐
 
 #### 📄 `run_all_experiments.py` - **Automated 30-Song Generation**
-קובץ חדש שמריץ אוטומטית את כל 30 הניסויים הנדרשים למרצה:
-
+קובץ חדש שמריץ אוטומטית את כל 30 הניסויים
 **תוכלם:**
 - 5 מנגינות MIDI מקבצי test/
 - 3 מילות זרע: "love", "night", "dream"
@@ -743,7 +738,7 @@ experiment_results/
 └── experiment_summary.json         # סיכום סטטיסטיקות
 ```
 
-#### 🔍 `qualitative_analysis.py` - **Critical for Grade 100**
+#### 🔍 `qualitative_analysis.py`
 קובצ חדש שמנתח את השפעת המלודיה ומילות הזרע (לא רק ביצועים טכניים):
 
 **ניתוחים שמבצע:**
@@ -760,7 +755,6 @@ experiment_results/
 └── [Console Output]                   # תובנות מפתח לשימוש ישיר
 ```
 
-🎯 **מה שהמרצה דרש במפורש:**
 > "הדוח עצמו מתמקד בניתוח השפעת המלודיה והמילה הראשונה על התוצר, ולא רק בביצועים הטכניים."
 ### 🆕 **קבצי עזר חדשים:**
 

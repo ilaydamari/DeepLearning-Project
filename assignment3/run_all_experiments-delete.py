@@ -2,7 +2,7 @@
 Automated Experiment Runner for Assignment 3
 ==========================================
 Runs all 30 required experiments (5 melodies × 3 seed words × 2 models)
-for generating the complete results needed for 100% grade.
+for generating the complete results.
 """
 
 import os

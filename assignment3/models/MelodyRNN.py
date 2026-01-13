@@ -1,31 +1,28 @@
 """
-Melody-Conditioned RNN Models - Two SIGNIFICANTLY Different Approaches for MIDI Integration
-==========================================================================================
+Melody-Conditioned RNN Models - Two Different Approaches for MIDI Integration
+==============================================================================
 
-Following professor's feedback: "please refrain from making only miniature changes"
-These are TWO FUNDAMENTALLY DIFFERENT approaches, not minor variations:
+Implementation of two distinct approaches for integrating melody information with text generation:
 
-🎵 **Approach A: Direct Concatenation at Input Level**
-   - Melody features (84D) + Word embeddings (300D) = 384D input per timestep
-   - Direct temporal alignment: each word aligned with corresponding melody frame
-   - Architecture: Combined input → RNN → Output
-   - Melody influence: CONTINUOUS at input level throughout generation
+Approach A: Direct Concatenation
+- Melody features (84D) + Word embeddings (300D) = 384D input per timestep
+- Direct temporal alignment between melody frames and words
+- Architecture: Combined input → RNN → Output
+- Melody influence: Continuous at input level throughout generation
 
-🎼 **Approach B: Initial Conditioning + Continuous Attention (SIGNIFICANTLY DIFFERENT)**
-   - Step 1: Melody → Global conditioning vector → Initial hidden state
-   - Step 2: Standard word embeddings (300D) → RNN 
-   - Step 3: Continuous attention between RNN output and melody features
-   - Step 4: Gated fusion of attended melody context with RNN output
-   - Architecture: Melody conditioning → Word RNN → Attention → Gated fusion
-   - Melody influence: DUAL (initial conditioning + continuous attention)
+Approach B: Initial Conditioning + Attention
+- Step 1: Melody → Global conditioning vector → Initial hidden state
+- Step 2: Standard word embeddings (300D) → RNN 
+- Step 3: Continuous attention between RNN output and melody features
+- Step 4: Gated fusion of attended melody context with RNN output
+- Architecture: Melody conditioning → Word RNN → Attention → Gated fusion
+- Melody influence: Dual (initial conditioning + continuous attention)
 
-KEY DIFFERENCES:
+Technical Differences:
 - Input processing: A=concatenation, B=separate word processing + attention
 - Temporal alignment: A=direct frame-by-frame, B=attention-based flexible alignment  
 - Architecture depth: A=single-stage, B=multi-stage (conditioning + attention + gating)
 - Melody integration: A=input fusion, B=hidden state conditioning + output attention
-
-Following assignment specifications for melody-conditioned text generation.
 """
 
 import torch
@@ -241,7 +238,7 @@ class MelodyConcatenationRNN(LyricsRNN):
                 next_word_logits = output_logits[0, -1, :]  # [vocab_size]
                 
                 # Apply temperature and top-k sampling (NON-DETERMINISTIC)
-                # Following professor's requirement: "should not be deterministic"
+                # Non-deterministic sampling implementation
                 if temperature != 1.0:
                     next_word_logits = next_word_logits / temperature
                 
@@ -252,7 +249,7 @@ class MelodyConcatenationRNN(LyricsRNN):
                     next_word_logits = torch.full_like(next_word_logits, -float('inf'))
                     next_word_logits[top_k_indices] = top_k_logits
                 
-                # PROBABILISTIC sampling (never argmax - following assignment requirements)
+                # Probabilistic sampling for diverse text generation
                 probabilities = F.softmax(next_word_logits, dim=-1)
                 next_word = torch.multinomial(probabilities, num_samples=1)
                 
@@ -580,7 +577,7 @@ class MelodyConditioningRNN(LyricsRNN):
                 # Get last timestep predictions
                 next_word_logits = output_logits[0, -1, :]  # [vocab_size]
                 
-                # ENSURE NON-DETERMINISTIC SAMPLING (following professor's feedback)
+                # Non-deterministic sampling for text variety
                 # Apply temperature scaling for probabilistic sampling
                 next_word_logits = next_word_logits / temperature
                 
@@ -592,7 +589,7 @@ class MelodyConditioningRNN(LyricsRNN):
                     next_word_logits = torch.full_like(next_word_logits, -float('inf'))
                     next_word_logits[top_k_indices] = top_k_logits
                 
-                # PROBABILISTIC sampling (never argmax - following professor's requirement)
+                # Probabilistic sampling for creative text generation
                 probabilities = F.softmax(next_word_logits, dim=-1)
                 next_word = torch.multinomial(probabilities, num_samples=1)
                 

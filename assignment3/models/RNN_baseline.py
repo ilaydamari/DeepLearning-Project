@@ -20,7 +20,7 @@ class LyricsRNN(nn.Module):
     This is the RNN model for lyrics generation.
     
     During training, receives one word at a time and predicts the next word.
-    Uses Word2Vec embeddings (300 dimensions) as specified in the assignment.
+    Uses Word2Vec embeddings (300 dimensions) for text representation.
     """
     
 ####################################### MODEL INITIALIZATION - Setup Parameters & Config #############################

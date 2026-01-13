@@ -1,9 +1,9 @@
 """
 Quick Evaluation Runner for Melody-Conditioned Lyrics Generation
 ================================================================
-Fast evaluation script for testing the completed assignment requirements.
+Fast evaluation script for testing melody-conditioned lyrics generation.
 Runs systematic tests on available models with the 3 seed word combinations
-across test MIDI files as specified in the assignment.
+across test MIDI files for comprehensive evaluation.
 
 Usage:
     python quick_eval.py --models_dir models --data_dir data --num_midi_files 5
@@ -24,7 +24,7 @@ from evaluation import MelodyLyricsEvaluator
 
 def quick_evaluation_run(models_dir: str, data_dir: str, num_midi_files: int = 5):
     """
-    Run quick evaluation focusing on core assignment requirements.
+    Run quick evaluation focusing on melody-conditioned generation performance.
     
     Args:
         models_dir (str): Directory containing trained models
@@ -32,10 +32,10 @@ def quick_evaluation_run(models_dir: str, data_dir: str, num_midi_files: int = 5
         num_midi_files (int): Number of test MIDI files to use
     """
     
-    print("🎵 QUICK EVALUATION - Deep Learning Assignment 3")
+    print("QUICK EVALUATION - Melody-Conditioned Lyrics Generation")
     print("=" * 60)
     print(f"Testing up to {num_midi_files} MIDI files with 3 seed combinations")
-    print("Following assignment requirements for systematic evaluation")
+    print("Systematic evaluation of melody-conditioned models")
     print("=" * 60)
     
     # Quick setup
@@ -151,7 +151,7 @@ def main():
     
     if args.check_only:
         if structure_ok:
-            print("✅ Project structure is complete!")
+            print("Project structure is complete!")
         return
     
     if not structure_ok:
@@ -168,8 +168,8 @@ def main():
         print("\n🎉 Quick evaluation completed successfully!")
         
         # Generate assignment completion checklist
-        print("\n📋 Assignment Completion Checklist:")
-        print("✅ 1-4: Data processing and model architecture (implemented)")
+        print("\n📋 Evaluation Summary:")
+        print("1-4: Data processing and model architecture (implemented)")
         print("✅ 5-18: Training and generation pipeline (implemented)")
         print("✅ 19: Song structure formatting (enhanced)")
         print("✅ 20: Test set evaluation (systematic testing implemented)")

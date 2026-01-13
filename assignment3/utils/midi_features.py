@@ -1,7 +1,7 @@
 """
 MIDI feature extraction utilities for melody-conditioned lyrics generation.
 Extracts musical features from MIDI files to create melody conditioning vectors.
-Following the assignment requirements for two-approach melody integration.
+Implementation for two-approach melody integration.
 """
 
 import pretty_midi
@@ -41,7 +41,7 @@ def load_midi_file(midi_path: str) -> pretty_midi.PrettyMIDI:
 class MelodyFeatureExtractor:
     """
     Extracts musical features from MIDI files for lyrics conditioning.
-    Implements comprehensive feature extraction following assignment specifications.
+    Implements comprehensive feature extraction for melody analysis.
     """
     
     def __init__(self, sample_rate: int = 16, max_duration: float = 30.0):

@@ -1,7 +1,7 @@
 """
 Comprehensive Evaluation Pipeline for Melody-Conditioned Lyrics Generation
 =========================================================================
-Implements systematic evaluation following assignment requirements:
+Implements systematic evaluation for melody-conditioned models:
 - Test on 5 melody files with 3 different seed word combinations each
 - Compare concatenation vs conditioning approaches
 - Generate detailed analysis reports
@@ -580,14 +580,14 @@ class MelodyLyricsEvaluator:
 </head>
 <body>
     <div class="header">
-        <h1>🎵 Melody-Conditioned Lyrics Generation - Evaluation Report</h1>
+        <h1>Melody-Conditioned Lyrics Generation - Evaluation Report</h1>
         <p><strong>Evaluation Date:</strong> {results['metadata']['evaluation_date']}</p>
         <p><strong>Models Tested:</strong> {', '.join(results['metadata']['models_tested'])}</p>
         <p><strong>Test Files:</strong> {len(results['metadata']['test_files'])} MIDI files</p>
         <p><strong>Total Generations:</strong> {len(results['detailed_results'])}</p>
     </div>
 
-    <h2>📊 Summary Statistics</h2>
+    <h2>Summary Statistics</h2>
     <table class="metric-table">
         <tr>
             <th>Model</th>
@@ -628,7 +628,7 @@ class MelodyLyricsEvaluator:
         html_content += """
     </ul>
 
-    <h2>📝 Example Generations</h2>
+    <h2>Example Generations</h2>
 """
         
         # Add some example generations
@@ -665,7 +665,7 @@ class MelodyLyricsEvaluator:
 def main():
     """Main evaluation pipeline following assignment requirements."""
     
-    print("🎵 COMPREHENSIVE MELODY-CONDITIONED LYRICS EVALUATION")
+    print("COMPREHENSIVE MELODY-CONDITIONED LYRICS EVALUATION")
     print("=" * 80)
     print("Following Deep Learning Assignment 3 evaluation requirements:")
     print("- Test on 5 melody files with 3 seed combinations each")
@@ -700,14 +700,14 @@ def main():
         print("\n" + "="*80)
         print("EVALUATION COMPLETED SUCCESSFULLY!")
         print("="*80)
-        print(f"📊 Total generations analyzed: {len(results['detailed_results'])}")
-        print(f"📁 Results saved to: evaluation_results/")
+        print(f"Total generations analyzed: {len(results['detailed_results'])}")
+        print(f"Results saved to: evaluation_results/")
         print(f"🏆 Best overall model by coherence: {results['model_comparisons']['best_performers'].get('lyrical_coherence', 'N/A')}")
-        print(f"🎭 Best creativity: {results['model_comparisons']['best_performers'].get('creativity_score', 'N/A')}")
+        print(f"Best creativity: {results['model_comparisons']['best_performers'].get('creativity_score', 'N/A')}")
         print("="*80)
         
     except Exception as e:
-        print(f"\n❌ Evaluation failed: {e}")
+        print(f"\nEvaluation failed: {e}")
         import traceback
         traceback.print_exc()
 

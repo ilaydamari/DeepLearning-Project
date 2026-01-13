@@ -424,7 +424,7 @@ def main():
         batch_size=config['batch_size']
     )
     
-    # Get Word2Vec embeddings as required by assignment
+    # Get Word2Vec embeddings for text representation
     embedding_matrix = dataset.preprocessor.get_embedding_matrix()
     print(f"✓ Data loaded successfully")
     print(f"  Training batches: {len(train_loader)}")
